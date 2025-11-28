@@ -1,0 +1,38 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <p class="hint">Exam: {{ exam.title }}</p>
+    <h2>Student results</h2>
+    <p class="hint">Times shown in {{ user_timezone }}</p>
+  </div>
+  <a class="btn ghost" href="{{ url_for('instructor_dashboard') }}">Back</a>
+</div>
+
+<div class="card">
+  {% if attempts %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Student</th>
+          <th>Score</th>
+          <th>Started</th>
+          <th>Submitted</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in attempts %}
+          <tr>
+            <td>{{ item.student.username }}</td>
+            <td>{% if item.obj.submitted_at %}{{ item.obj.score_percent }}%{% else %}In progress{% endif %}</td>
+            <td>{{ item.started_local }}</td>
+            <td>{{ item.submitted_local or "-" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No attempts yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

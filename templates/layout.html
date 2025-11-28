@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ title or "Exam App" }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Exam Center</div>
+    <nav>
+      {% if session.get('user_id') %}
+        <a href="{{ url_for('index') }}">Home</a>
+        <a href="{{ url_for('settings') }}">Settings</a>
+        {% if current_user and current_user.role == 'admin' %}
+          <a href="{{ url_for('admin_dashboard') }}">Admin</a>
+          <a href="{{ url_for('admin_logs') }}">Log</a>
+        {% endif %}
+        <a href="{{ url_for('logout') }}">Logout</a>
+      {% endif %}
+    </nav>
+  </header>
+  <main class="container">
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul class="flash">
+          {% for m in messages %}
+            <li>{{ m }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

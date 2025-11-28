@@ -1,0 +1,37 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <p class="hint">Exam: {{ exam.title }}</p>
+    <h2>Answer key</h2>
+  </div>
+  <div class="actions">
+    <a class="btn" href="{{ url_for('add_question', exam_id=exam.id) }}">Add question</a>
+    <a class="btn ghost" href="{{ url_for('instructor_dashboard') }}">Back</a>
+  </div>
+</div>
+
+<form method="post" class="card">
+  {% for question in exam.questions %}
+    <div class="review-item">
+      <p class="question-text">{{ loop.index }}. {{ question.text }} <span class="hint">({{ question.qtype }})</span></p>
+      <div class="choices">
+        {% for choice in question.choices %}
+          <label class="choice">
+            <input
+              type="{{ 'checkbox' if question.qtype == 'multiple' else 'radio' }}"
+              name="q_{{ question.id }}"
+              value="{{ choice.id }}"
+              {% if choice.is_correct %}checked{% endif %}
+            >
+            <span>{{ choice.text }}</span>
+          </label>
+        {% endfor %}
+      </div>
+    </div>
+  {% endfor %}
+  <div class="actions">
+    <button type="submit">Save answer key</button>
+  </div>
+</form>
+{% endblock %}

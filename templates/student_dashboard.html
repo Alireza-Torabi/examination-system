@@ -1,0 +1,112 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <h2>Student Exams</h2>
+    <p class="hint">Current time ({{ user_timezone }}): {{ now.strftime("%Y-%m-%d %H:%M") }}</p>
+  </div>
+</div>
+
+<section>
+  <h3>Your exams</h3>
+  {% if not current_user.instructor_id %}
+    <p class="hint">No instructor assigned to your account. Please contact admin.</p>
+  {% endif %}
+  {% if exam_views %}
+    <div class="grid">
+      {% for item in exam_views %}
+        {% set exam = item.exam %}
+        {% set attempt = item.attempt %}
+        {% set status = item.status %}
+        {% set disabled = status in ["upcoming", "not_ready", "closed"] %}
+        <article class="card {% if disabled %}disabled{% endif %}">
+          <h4>{{ exam.title }}</h4>
+          <p>{{ exam.description }}</p>
+          <p dir="ltr"><strong>Window:</strong> {{ item.start_local }} - {{ item.end_local }} ({{ user_timezone }})</p>
+          <p><strong>Duration:</strong> {{ exam.duration_minutes }} minutes</p>
+          {% if status == "active" %}
+            <a class="btn" href="{{ url_for('start_exam', exam_id=exam.id) }}">Start / Resume</a>
+          {% elif status == "completed_active" %}
+            <div class="actions">
+              <a class="btn" href="{{ url_for('start_exam', exam_id=exam.id) }}">Retake</a>
+              <a class="btn ghost" href="{{ url_for('view_result', attempt_id=attempt.id) }}">View last result</a>
+            </div>
+          {% elif status == "upcoming" %}
+            <p class="hint">Starts in <span class="countdown" data-seconds="{{ item.countdown_seconds }}">...</span></p>
+            <button class="btn disabled" disabled>Not started yet</button>
+          {% elif status == "completed" %}
+            <a class="btn ghost" href="{{ url_for('view_result', attempt_id=attempt.id) }}">View result ({{ attempt.score_percent }}%)</a>
+          {% elif status == "not_ready" %}
+            <button class="btn disabled" disabled>Exam not ready</button>
+            <p class="hint">Awaiting instructor to publish answers.</p>
+          {% elif status == "closed" %}
+            <button class="btn disabled" disabled>Closed by instructor</button>
+            <p class="hint">Instructor has closed this exam.</p>
+          {% endif %}
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p>No exams assigned.</p>
+  {% endif %}
+</section>
+
+<section>
+  <h3>History</h3>
+  {% if attempts %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Exam</th>
+          <th>Started</th>
+          <th>Submitted</th>
+          <th>Score</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for attempt in attempts %}
+          <tr>
+            <td>{{ attempt.exam.title }}</td>
+            <td>{{ attempt.started_at }}</td>
+            <td>{{ attempt.submitted_at or "-" }}</td>
+            <td>{% if attempt.submitted_at %}{{ attempt.score_percent }}%{% else %}In progress{% endif %}</td>
+            <td>
+              {% if attempt.submitted_at %}
+                <a href="{{ url_for('view_result', attempt_id=attempt.id) }}">View result</a>
+              {% else %}
+                <a href="{{ url_for('show_question', attempt_id=attempt.id, index=1) }}">Resume</a>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No attempts yet.</p>
+  {% endif %}
+</section>
+
+<script>
+  const countdownEls = document.querySelectorAll('.countdown');
+  countdownEls.forEach((el) => {
+    let seconds = parseInt(el.dataset.seconds, 10) || 0;
+    const format = (s) => {
+      const days = Math.floor(s / 86400);
+      s -= days * 86400;
+      const hours = Math.floor(s / 3600);
+      s -= hours * 3600;
+      const mins = Math.floor(s / 60);
+      const secs = s % 60;
+      return `${days}d ${hours.toString().padStart(2,'0')}h ${mins.toString().padStart(2,'0')}m ${secs.toString().padStart(2,'0')}s`;
+    };
+    const tick = () => {
+      if (seconds < 0) return;
+      el.textContent = format(seconds);
+      seconds -= 1;
+      setTimeout(tick, 1000);
+    };
+    tick();
+  });
+</script>
+{% endblock %}

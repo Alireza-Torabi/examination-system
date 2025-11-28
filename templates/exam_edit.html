@@ -1,0 +1,37 @@
+{% extends "layout.html" %}
+{% block content %}
+<section class="card narrow">
+  <h2>Edit Exam</h2>
+  <form method="post">
+    <label>Title
+      <input type="text" name="title" value="{{ exam.title }}" required>
+    </label>
+    <label>Description
+      <textarea name="description" rows="3">{{ exam.description }}</textarea>
+    </label>
+    <label>Start (local time for selected timezone)
+      <input type="datetime-local" name="start_at" value="{{ start_val }}" required>
+    </label>
+    <label>End (local time for selected timezone)
+      <input type="datetime-local" name="end_at" value="{{ end_val }}" required>
+    </label>
+    <label>Timezone
+      <select name="timezone">
+        {% for tz in timezone_options %}
+          <option value="{{ tz }}" {% if tz == exam.timezone %}selected{% endif %}>{{ tz }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Duration (minutes)
+      <input type="number" name="duration_minutes" min="1" value="{{ exam.duration_minutes }}" required>
+    </label>
+    <label>Number of questions to ask (optional)
+      <input type="number" name="question_limit" min="1" value="{{ exam.question_limit or '' }}" placeholder="Leave empty to ask all questions">
+    </label>
+    <div class="actions">
+      <button type="submit">Save</button>
+      <a class="btn ghost" href="{{ url_for('instructor_dashboard') }}">Cancel</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

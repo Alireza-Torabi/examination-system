@@ -1,0 +1,67 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <h2>{{ "Edit user" if user else "New user" }}</h2>
+  </div>
+  <a class="btn ghost" href="{{ url_for('admin_dashboard') }}">Back</a>
+</div>
+
+<form method="post" class="card narrow">
+  <label>Username
+    <input type="text" name="username" value="{{ user.username if user else '' }}" required>
+  </label>
+  <label>Full name
+    <input type="text" name="full_name" value="{{ user.full_name if user else '' }}">
+  </label>
+  <label>Role
+    <select name="role">
+      {% set selected_role = user.role if user else "student" %}
+      {% for r in ["admin", "instructor", "student"] %}
+        <option value="{{ r }}" {% if selected_role == r %}selected{% endif %}>{{ r }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Instructor (for students)
+    <select name="instructor_id">
+      <option value="">-- None --</option>
+      {% for inst in instructors %}
+        <option value="{{ inst.id }}"
+          {% if user and user.instructor_id == inst.id %}selected{% endif %}>
+          {{ inst.username }} ({{ inst.tenant.slug }})
+        </option>
+      {% endfor %}
+    </select>
+    <p class="hint">Assign only when role is student; instructor must be in the same tenant.</p>
+  </label>
+  <label>Timezone
+    <select name="timezone">
+      <option value="">(inherit default)</option>
+      {% for tz in timezone_options %}
+        <option value="{{ tz }}" {% if user and user.timezone == tz %}selected{% endif %}>{{ tz }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Tenant
+    <select name="tenant_id" required>
+      {% for t in tenants %}
+        <option value="{{ t.id }}" {% if user and user.tenant_id == t.id %}selected{% endif %}>{{ t.name }} ({{ t.slug }})</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Password {% if user %}<span class="hint">(leave blank to keep unchanged)</span>{% endif %}
+    <input type="password" name="password" {% if not user %}required{% endif %}>
+  </label>
+  {% if user %}
+    <label>Confirm password
+      <input type="password" name="password_confirm">
+    </label>
+  {% endif %}
+  {% if user %}
+    <p class="hint">To force a reset, enter a new password here.</p>
+  {% endif %}
+  <div class="actions">
+    <button type="submit">Save</button>
+  </div>
+</form>
+{% endblock %}

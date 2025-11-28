@@ -1,0 +1,126 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <h2>Logs</h2>
+    <p class="hint">Application and access logs</p>
+  </div>
+  <div class="actions">
+    <a class="btn {% if view != 'access' %}ghost{% endif %}" href="{{ url_for('admin_logs', view='app') }}">App logs</a>
+    <a class="btn {% if view == 'access' %}ghost{% endif %}" href="{{ url_for('admin_logs', view='access') }}">Access logs</a>
+  </div>
+</div>
+
+{% if view == 'access' %}
+  <div class="card">
+    <h3>Access logs</h3>
+    <p class="hint">Click IP to fetch GeoIP (via free API)</p>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>IP</th>
+          <th>Path</th>
+          <th>Method</th>
+          <th>User</th>
+          <th>UA</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in access_logs %}
+          <tr>
+            <td>{{ log.created_at }}</td>
+            <td><a href="#" class="geoip" data-ip="{{ log.ip }}">{{ log.ip or "-" }}</a></td>
+            <td>{{ log.path }}</td>
+            <td>{{ log.method }}</td>
+            <td>{{ log.user.username if log.user else "-" }}</td>
+            <td class="hint">{{ log.user_agent }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="hint">Latest {{ access_logs|length }} access entries.</p>
+  </div>
+{% else %}
+  <div class="card">
+    <h3>Exam deletions</h3>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>When</th>
+          <th>Exam</th>
+          <th>Instructor</th>
+          <th>Tenant</th>
+          <th>Note</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in deletion_logs %}
+          <tr>
+            <td>{{ log.deleted_local }}</td>
+            <td>#{{ log.obj.exam_id }} {{ log.obj.exam_title }}</td>
+            <td>{{ log.obj.instructor.username if log.obj.instructor else log.obj.instructor_id }}</td>
+            <td>{{ log.obj.tenant.slug }}</td>
+            <td>{{ log.obj.note }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="hint">Latest {{ deletion_logs|length }} deletions.</p>
+    {% if deletion_logs|length == 0 %}
+      <p class="hint">No deletions logged.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h3>Attempt results</h3>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Submitted</th>
+          <th>Exam</th>
+          <th>Student</th>
+          <th>Score</th>
+          <th>Started</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for att in attempt_logs %}
+          <tr>
+            <td>{{ att.submitted_local or "-" }}</td>
+            <td>{{ att.obj.exam.title if att.obj.exam else att.obj.exam_id }}</td>
+            <td>{{ att.obj.student.username if att.obj.student else att.obj.student_id }}</td>
+            <td>{% if att.obj.submitted_at %}{{ att.obj.score_percent }}%{% else %}In progress{% endif %}</td>
+            <td>{{ att.started_local }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="hint">Latest {{ attempt_logs|length }} attempts.</p>
+  </div>
+{% endif %}
+
+{% if view == 'access' %}
+<script>
+  document.querySelectorAll('.geoip').forEach(el => {
+    el.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const ip = el.dataset.ip;
+      if (!ip) return;
+      try {
+        const resp = await fetch(`https://ipwho.is/${encodeURIComponent(ip)}`);
+        const data = await resp.json();
+        if (!data.success) {
+          alert(data.message || 'Lookup failed.');
+          return;
+        }
+        const flag = data.country_code ? String.fromCodePoint(...data.country_code.toUpperCase().split('').map(c => 127397 + c.charCodeAt(0))) : '';
+        alert(`IP: ${ip}\nCountry: ${data.country || 'N/A'} ${flag}\nCity: ${data.city || 'N/A'}\nISP: ${data.isp || 'N/A'}`);
+      } catch (err) {
+        alert('Lookup error.');
+      }
+    });
+  });
+</script>
+{% endif %}
+{% endblock %}

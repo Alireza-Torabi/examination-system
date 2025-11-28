@@ -1,0 +1,167 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <h2>Admin panel</h2>
+    <p class="hint">Full access across tenants. Timezone: {{ admin_tz }}</p>
+  </div>
+  <div class="actions">
+    <a class="btn" href="{{ url_for('admin_user_new') }}">Add user</a>
+    <a class="btn ghost" href="{{ url_for('admin_tenant_new') }}">Add tenant</a>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <h3>Stats</h3>
+    <p>Tenants: {{ stats.tenants }}</p>
+    <p>Users: {{ stats.users }}</p>
+    <p>Exams: {{ stats.exams }}</p>
+    <p>Attempts: {{ stats.attempts }}</p>
+  </div>
+  <div class="card">
+    <h3>Reporting filters</h3>
+    <form method="get">
+      <label>Tenant
+        <select name="tenant_id">
+          <option value="">All</option>
+          {% for t in tenants %}
+            <option value="{{ t.id }}" {% if tenant_filter==t.id %}selected{% endif %}>{{ t.name }} ({{ t.slug }})</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Exam
+        <select name="exam_id">
+          <option value="">All</option>
+          {% for ex in exam_options %}
+            <option value="{{ ex.id }}" {% if exam_filter==ex.id %}selected{% endif %}>{{ ex.title }} ({{ ex.tenant.slug }})</option>
+          {% endfor %}
+        </select>
+      </label>
+      <div class="actions">
+        <button type="submit">Apply</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  const geoBtn = document.getElementById('geoipLookupBtn');
+  const geoInput = document.getElementById('geoipInput');
+  const doLookup = async () => {
+    const ip = (geoInput?.value || '').trim();
+    if (!ip) { alert('Enter an IP address.'); return; }
+    try {
+      const resp = await fetch(`https://ipwho.is/${encodeURIComponent(ip)}`);
+      const data = await resp.json();
+      if (!data.success) {
+        alert(data.message || 'Lookup failed.');
+        return;
+      }
+      const flag = data.country_code ? String.fromCodePoint(...data.country_code.toUpperCase().split('').map(c => 127397 + c.charCodeAt(0))) : '';
+      alert(`IP: ${ip}\nCountry: ${data.country || 'N/A'} ${flag}\nCity: ${data.city || 'N/A'}\nISP: ${data.isp || 'N/A'}`);
+    } catch (e) {
+      alert('Error during lookup.');
+    }
+  };
+  if (geoBtn) {
+    geoBtn.addEventListener('click', doLookup);
+  }
+</script>
+
+<div class="card">
+  <div class="toolbar no-space">
+    <h3>Users</h3>
+    <a class="btn ghost" href="{{ url_for('admin_user_new') }}">New user</a>
+  </div>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Username</th>
+        <th>Name</th>
+        <th>Role</th>
+        <th>Tenant</th>
+        <th>Timezone</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+        <tr>
+          <td>{{ u.username }}</td>
+          <td>{{ u.full_name }}</td>
+          <td>{{ u.role }}</td>
+          <td>{{ u.tenant.slug }}</td>
+          <td>{{ u.timezone or "-" }}</td>
+          <td><a href="{{ url_for('admin_user_edit', user_id=u.id) }}">Edit</a></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h3>Exams</h3>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Title</th>
+        <th>Tenant</th>
+        <th>Instructor</th>
+        <th>Window</th>
+        <th>Questions</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for ex in exams %}
+        <tr>
+          <td>{{ ex.title }}</td>
+          <td>{{ ex.tenant.slug }}</td>
+          <td>{{ ex.creator.username if ex.creator else ex.created_by }}</td>
+          <td>{{ ex.start_at }} - {{ ex.end_at }} ({{ ex.timezone }})</td>
+          <td>{{ ex.questions|length }}</td>
+          <td>
+            {% if not ex.deleted_at %}
+              <form method="post" action="{{ url_for('delete_exam', exam_id=ex.id) }}" onsubmit="return confirm('Delete this exam?');">
+                <button type="submit" class="btn ghost">Delete</button>
+              </form>
+            {% else %}
+              <span class="hint">Deleted</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h3>Attempt results</h3>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Tenant</th>
+        <th>Exam</th>
+        <th>Student</th>
+        <th>Score</th>
+        <th>Started</th>
+        <th>Submitted</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for att in attempts %}
+        <tr>
+          <td>{{ att.obj.tenant.slug }}</td>
+          <td>{{ att.obj.exam.title }}</td>
+          <td>{{ att.obj.student.username }}</td>
+          <td>{% if att.obj.submitted_at %}{{ att.obj.score_percent }}%{% else %}In progress{% endif %}</td>
+          <td>{{ att.started_local }}</td>
+          <td>{{ att.submitted_local or "-" }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="hint">Showing latest {{ attempts|length }} attempts.</p>
+</div>
+{% endblock %}

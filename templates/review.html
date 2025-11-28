@@ -1,0 +1,36 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <p class="hint">Exam: {{ attempt.exam.title }}</p>
+    <h2>Review answers</h2>
+  </div>
+  <div class="pill">Time left: {{ time_left_seconds }}s</div>
+</div>
+
+<div class="card">
+  {% for question in questions %}
+    {% set q_rtl = is_rtl(question.text) %}
+    <div class="review-item" dir="{{ 'rtl' if q_rtl else 'ltr' }}">
+      <p class="question-text">{{ loop.index }}. {{ question.text }}</p>
+      {% if question.image_path %}
+        <div class="question-image"><img src="{{ url_for('static', filename=question.image_path) }}" alt="Question image"></div>
+      {% endif %}
+      <ul class="plain" dir="{{ 'rtl' if q_rtl else 'ltr' }}">
+        {% set letters = ['A','B','C','D','E','F'] %}
+        {% for choice in question.choices %}
+          <li>
+            {% set checked = choice.id in (answers_map.get(question.id) or []) %}
+            {{ letters[loop.index0] }}. {{ "[x]" if checked else "[ ]" }} {{ choice.text }}
+          </li>
+        {% endfor %}
+      </ul>
+      <a class="ghost" href="{{ url_for('show_question', attempt_id=attempt.id, index=loop.index) }}">Edit</a>
+      <hr>
+    </div>
+  {% endfor %}
+  <form method="post" action="{{ url_for('submit_attempt', attempt_id=attempt.id) }}">
+    <button type="submit">Submit exam</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "layout.html" %}
+{% block content %}
+<section class="card narrow">
+  <h2>Create Exam</h2>
+  <form method="post" enctype="multipart/form-data">
+    <label>Title
+      <input type="text" name="title" required>
+    </label>
+    <label>Description
+      <textarea name="description" rows="3"></textarea>
+    </label>
+    <label>Start (local time for selected timezone)
+      <input type="datetime-local" name="start_at" required>
+    </label>
+    <label>End (local time for selected timezone)
+      <input type="datetime-local" name="end_at" required>
+    </label>
+    <label>Timezone
+      <select name="timezone">
+        {% for tz in timezone_options %}
+          <option value="{{ tz }}" {% if tz == "Asia/Tehran" %}selected{% endif %}>{{ tz }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Duration (minutes)
+      <input type="number" name="duration_minutes" min="1" required>
+    </label>
+    <label>Number of questions to ask (optional)
+      <input type="number" name="question_limit" min="1" placeholder="Leave empty to ask all questions">
+    </label>
+    <label>Questions Excel (optional)
+      <input type="file" name="questions_file" accept=".xlsx">
+    </label>
+    <p class="hint">You can import questions via Excel (template supports up to 6 options), or skip and add questions with the UI after creating the exam. Correct answers: optional column "Correct" with letters (A or A,C).</p>
+    <div class="actions">
+      <button type="submit">Create</button>
+      <a class="btn ghost" href="{{ url_for('excel_template') }}">Download Template</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

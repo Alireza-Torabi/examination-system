@@ -1,0 +1,63 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <p class="hint">Exam: {{ exam.title }}</p>
+    <h2>Edit question</h2>
+  </div>
+  <div class="actions">
+    <a class="btn ghost" href="{{ url_for('add_question', exam_id=exam.id) }}">Back</a>
+  </div>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="card">
+  <label>Question text
+    <textarea name="text" rows="3" required>{{ question.text }}</textarea>
+  </label>
+  <label>Reason / Explanation (optional, shown to student after exam)
+    <textarea name="reason" rows="2" placeholder="Why this answer is correct, hints, or notes for review">{{ question.reason or "" }}</textarea>
+  </label>
+  <label>Type
+    <select name="qtype">
+      <option value="single" {% if question.qtype == 'single' %}selected{% endif %}>Single choice</option>
+      <option value="multiple" {% if question.qtype == 'multiple' %}selected{% endif %}>Multiple choice</option>
+    </select>
+  </label>
+  <label>Image (optional)
+    {% if question.image_path %}
+      <div class="question-image"><img src="{{ url_for('static', filename=question.image_path) }}" alt="Question image"></div>
+      <label class="choice"><input type="checkbox" name="remove_image"> <span>Remove image</span></label>
+    {% endif %}
+    <input type="file" name="image" accept="image/*">
+  </label>
+  <p class="hint">Edit options and mark correct ones.</p>
+  <div class="grid">
+    {% for opt in options %}
+      <div class="card">
+        <label>Option {{ loop.index }}
+          <input type="text" name="option{{ loop.index }}" value="{{ opt.text }}">
+        </label>
+        <label class="choice">
+          <input type="checkbox" name="correct" value="{{ loop.index }}" {% if loop.index0 in correct_indices %}checked{% endif %}>
+          <span>Correct</span>
+        </label>
+      </div>
+    {% endfor %}
+    {% for idx in range(options|length + 1, 7) %}
+      <div class="card">
+        <label>Option {{ idx }}
+          <input type="text" name="option{{ idx }}">
+        </label>
+        <label class="choice">
+          <input type="checkbox" name="correct" value="{{ idx }}">
+          <span>Correct</span>
+        </label>
+      </div>
+    {% endfor %}
+  </div>
+  <div class="actions">
+    <button type="submit">Save question</button>
+    <a class="btn ghost" href="{{ url_for('add_question', exam_id=exam.id) }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <h2>Instructor Dashboard</h2>
+    <p class="hint">Current time ({{ user_timezone }}): {{ now.strftime("%Y-%m-%d %H:%M") }}</p>
+  </div>
+  <div class="actions">
+    <a class="btn" href="{{ url_for('create_exam') }}">Create Exam</a>
+    <a class="btn ghost" href="{{ url_for('excel_template') }}">Download Excel Template</a>
+  </div>
+</div>
+
+{% if exams %}
+  <div class="grid">
+    {% for item in exams %}
+      {% set exam = item.obj %}
+      <article class="card">
+        <h3>{{ exam.title }}</h3>
+        <p>{{ exam.description }}</p>
+        <p dir="ltr"><strong>Window:</strong> {{ item.start_local }} - {{ item.end_local }} ({{ user_timezone }})</p>
+        <p><strong>Duration:</strong> {{ exam.duration_minutes }} minutes</p>
+        {% if exam.is_closed %}
+          <p class="hint">Status: Closed ({{ exam.closed_at }})</p>
+        {% endif %}
+        <p><strong>Questions:</strong> {{ exam.questions|length }}{% if exam.question_limit %} (asks {{ exam.question_limit }}){% endif %}</p>
+        {% if exam.has_answer_key() %}
+          <p class="hint">Answer key: complete</p>
+        {% else %}
+          <p class="hint">Answer key: missing selections</p>
+        {% endif %}
+        <div class="actions">
+          <a class="btn" href="{{ url_for('add_question', exam_id=exam.id) }}">Add questions (UI)</a>
+          <a class="btn ghost" href="{{ url_for('answer_key', exam_id=exam.id) }}">Edit answer key</a>
+          <a class="btn ghost" href="{{ url_for('edit_exam', exam_id=exam.id) }}">Edit exam</a>
+          <form method="post" action="{{ url_for('toggle_close_exam', exam_id=exam.id) }}" style="display:inline;">
+            <button type="submit" class="btn ghost">{{ "Reopen" if exam.is_closed else "Close" }} exam</button>
+          </form>
+          <a class="btn ghost" href="{{ url_for('export_exam', exam_id=exam.id) }}">Export Excel</a>
+          <a class="btn ghost" href="{{ url_for('instructor_exam_results', exam_id=exam.id) }}">View results</a>
+          <form method="post" action="{{ url_for('delete_exam', exam_id=exam.id) }}" onsubmit="return confirm('Delete this exam?');" style="display:inline;">
+            <button type="submit" class="btn ghost">Delete</button>
+          </form>
+        </div>
+      </article>
+    {% endfor %}
+  </div>
+{% else %}
+  <p>No exams yet. Create one to get started.</p>
+{% endif %}
+{% endblock %}

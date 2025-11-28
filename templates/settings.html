@@ -1,0 +1,24 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <h2>Account settings</h2>
+    <p class="hint">Update your timezone for exam times.</p>
+  </div>
+</div>
+
+<form method="post" class="card narrow">
+  <label>Timezone
+    <select name="timezone">
+      <option value="">UTC (default)</option>
+      {% for tz in timezone_options %}
+        <option value="{{ tz }}" {% if user.timezone == tz %}selected{% endif %}>{{ tz }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <div class="actions">
+    <button type="submit">Save</button>
+    <a class="btn ghost" href="{{ url_for('change_password') }}">Change password</a>
+  </div>
+</form>
+{% endblock %}

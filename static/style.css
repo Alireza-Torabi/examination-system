@@ -1,0 +1,116 @@
+* { box-sizing: border-box; }
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  background: #f5f7fb;
+  color: #1c2734;
+}
+a { color: #0f6ad8; text-decoration: none; }
+a:hover { text-decoration: underline; }
+.topbar {
+  background: #0f6ad8;
+  color: #fff;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.brand { font-weight: 700; }
+.topbar nav a {
+  color: #fff;
+  margin-left: 12px;
+}
+.container { max-width: 960px; margin: 24px auto; padding: 0 16px; }
+.card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 18px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+  margin-bottom: 16px;
+}
+.card.disabled {
+  opacity: 0.6;
+}
+.narrow { max-width: 540px; margin: 0 auto; }
+.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap; }
+.toolbar.no-space { margin-bottom: 0; }
+.pill {
+  padding: 8px 12px;
+  background: #e8f0ff;
+  border-radius: 999px;
+  border: 1px solid #c6dafc;
+  font-weight: 600;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+.pill .warn { color: #d97a00; }
+.pill .danger { color: #c0392b; }
+.blink { animation: blink 1s step-start infinite; }
+@keyframes blink { 50% { opacity: 0.4; } }
+.warning { color: #c0392b; margin-top: 8px; font-weight: 600; }
+.card.overtime { border-color: #c0392b; box-shadow: 0 0 0 2px rgba(192,57,43,0.12); }
+.mono { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; }
+.flash { list-style: none; padding: 12px; border-radius: 8px; background: #fff7e6; border: 1px solid #f5d57d; }
+.flash li { margin: 0; }
+form label { display: block; font-weight: 600; margin: 10px 0 4px; }
+input, textarea, select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #d3d8e0;
+  border-radius: 6px;
+  margin-top: 4px;
+}
+button, .btn {
+  display: inline-block;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  background: #0f6ad8;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 700;
+  text-decoration: none;
+}
+button.ghost, .btn.ghost {
+  background: transparent;
+  color: #0f6ad8;
+  border: 1px solid #0f6ad8;
+}
+button:hover, .btn:hover { filter: brightness(0.95); }
+.btn.disabled, button.disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  filter: none;
+}
+.hint { color: #56606c; font-size: 0.9em; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.table { width: 100%; border-collapse: collapse; }
+.table th, .table td { padding: 8px; border-bottom: 1px solid #e2e6ec; text-align: left; }
+.question-text { font-weight: 700; }
+.form-card, .review-item, .result-item { direction: ltr; }
+[dir="rtl"] .question-text { direction: rtl; text-align: right; }
+[dir="ltr"] .question-text { direction: ltr; text-align: left; }
+[dir="rtl"] .choices { direction: rtl; text-align: right; }
+[dir="ltr"] .choices { direction: ltr; text-align: left; }
+.choices[dir="rtl"] .choice { justify-content: flex-end; }
+.choices { display: grid; grid-template-columns: 1fr; gap: 6px; margin: 12px 0; }
+.choice { display: grid; grid-template-columns: auto 1fr; gap: 8px; padding: 10px; border: 1px solid #e2e6ec; border-radius: 6px; align-items: start; }
+.choice input { margin-top: 3px; flex-shrink: 0; }
+.choice span { display: block; line-height: 1.4; word-break: break-word; }
+.question-image img { max-width: 100%; height: auto; margin: 8px 0; border-radius: 6px; }
+.choice[dir="rtl"] { direction: rtl; text-align: right; }
+.choice[dir="ltr"] { direction: ltr; text-align: left; }
+.actions { display: flex; gap: 8px; justify-content: flex-end; align-items: center; flex-wrap: wrap; }
+.toolbar .actions { justify-content: flex-end; flex-wrap: wrap; }
+.card .actions { justify-content: flex-start; }
+.actions form { margin: 0; display: inline-flex; }
+.plain { list-style: none; padding-left: 0; }
+.review-item { margin-bottom: 12px; }
+.correct { color: #0e8a2f; }
+.wrong { color: #d63031; }
+.ghost { background: transparent; }
+.hint.red { color: #c0392b; font-weight: 700; }
+@media print {
+  .topbar, .actions, .btn, button { display: none !important; }
+  body { background: #fff; }
+  .card { box-shadow: none; border: 1px solid #ccc; }
+}

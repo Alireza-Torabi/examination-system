@@ -1,0 +1,76 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <p class="hint">Exam: {{ exam.title }}</p>
+    <h2>Add question</h2>
+  </div>
+  <div class="actions">
+    <a class="btn ghost" href="{{ url_for('instructor_dashboard') }}">Back</a>
+    <a class="btn ghost" href="{{ url_for('answer_key', exam_id=exam.id) }}">Answer key</a>
+  </div>
+</div>
+
+<form method="post" class="card">
+  <label>Question text
+    <textarea name="text" rows="3" required></textarea>
+  </label>
+  <label>Type
+    <select name="qtype">
+      <option value="single">Single choice</option>
+      <option value="multiple">Multiple choice</option>
+    </select>
+  </label>
+  <label>Reason / Explanation (optional, shown to student after exam)
+    <textarea name="reason" rows="2" placeholder="Why this answer is correct, hints, or notes for review"></textarea>
+  </label>
+  <p class="hint">Fill 2-6 options. Mark the correct ones below.</p>
+  <label>Image (optional)
+    <input type="file" name="image" accept="image/*">
+  </label>
+  <div class="grid">
+    {% for idx in range(1,7) %}
+      <div class="card">
+        <label>Option {{ idx }}
+          <input type="text" name="option{{ idx }}">
+        </label>
+        <label class="choice">
+          <input type="checkbox" name="correct" value="{{ idx }}">
+          <span>Correct</span>
+        </label>
+      </div>
+    {% endfor %}
+  </div>
+  <div class="actions">
+    <button type="submit" name="action" value="add_more">Save &amp; add another</button>
+    <button type="submit" name="action" value="finish" class="ghost">Save &amp; go to answer key</button>
+  </div>
+</form>
+
+  <div class="card">
+    <h3>Existing questions</h3>
+    {% if exam.questions %}
+      <ul class="plain">
+        {% for question in exam.questions %}
+          <li>
+            <strong>{{ loop.index }}. {{ question.text }}</strong>
+            {% if question.image_path %}
+              <div><img src="{{ url_for('static', filename=question.image_path) }}" alt="question image" style="max-width:200px; margin-top:4px;"></div>
+            {% endif %}
+            {% if question.reason %}
+              <div class="hint">Reason: {{ question.reason }}</div>
+            {% endif %}
+            <br>
+            {% set letters = ['A','B','C','D','E','F'] %}
+            {% for choice in question.choices %}
+              {{ letters[loop.index0] }}. {{ choice.text }}{% if choice.is_correct %} (correct){% endif %}{% if not loop.last %} | {% endif %}
+            {% endfor %}
+            <div><a href="{{ url_for('edit_question', question_id=question.id) }}">Edit</a></div>
+          </li>
+        {% endfor %}
+      </ul>
+  {% else %}
+    <p class="hint">No questions yet. Add your first one above.</p>
+  {% endif %}
+</div>
+{% endblock %}
