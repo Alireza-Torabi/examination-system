@@ -7,11 +7,11 @@ import string
 import sys
 from datetime import datetime, timedelta, timezone
 from functools import wraps
-from zoneinfo import ZoneInfo, available_timezones
+from zoneinfo import ZoneInfo
 
 from flask import (
-    Flask,
     abort,
+    current_app,
     flash,
     redirect,
     render_template,
@@ -20,42 +20,19 @@ from flask import (
     session,
     url_for,
 )
-from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import inspect, text
 from openpyxl import Workbook, load_workbook
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
-try:
-    import pytz
-except ImportError:  # pragma: no cover
-    pytz = None
+from app import create_app
+from app.config import Config
+from app.extensions import db
 
 
-TIMEZONE_OPTIONS = sorted(available_timezones())
-if not TIMEZONE_OPTIONS and pytz:
-    TIMEZONE_OPTIONS = pytz.all_timezones
-if not TIMEZONE_OPTIONS:
-    # Minimal fallback if neither system tzdata nor pytz is available.
-    TIMEZONE_OPTIONS = [
-        "Asia/Tehran",
-        "UTC",
-        "Europe/London",
-        "America/New_York",
-        "Asia/Dubai",
-        "Asia/Karachi",
-        "Asia/Kolkata",
-        "Asia/Tokyo",
-        "Australia/Sydney",
-    ]
+TIMEZONE_OPTIONS = Config.TIMEZONE_OPTIONS
 
-
-app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///exam_app.db"
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
-
-db = SQLAlchemy(app)
+app = create_app()
 
 
 class Tenant(db.Model):
@@ -977,7 +954,7 @@ def add_question(exam_id):
             if not filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp")):
                 flash("Only image files are allowed (png, jpg, jpeg, gif, webp).")
                 return redirect(request.url)
-            upload_dir = os.path.join(app.root_path, "static", "uploads")
+            upload_dir = current_app.config["UPLOAD_FOLDER"]
             os.makedirs(upload_dir, exist_ok=True)
             stored_name = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}_{filename}"
             file_path = os.path.join(upload_dir, stored_name)
@@ -1061,7 +1038,7 @@ def edit_question(question_id):
             if not filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp")):
                 flash("Only image files are allowed (png, jpg, jpeg, gif, webp).")
                 return redirect(request.url)
-            upload_dir = os.path.join(app.root_path, "static", "uploads")
+            upload_dir = current_app.config["UPLOAD_FOLDER"]
             os.makedirs(upload_dir, exist_ok=True)
             stored_name = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}_{filename}"
             file_path = os.path.join(upload_dir, stored_name)
