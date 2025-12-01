@@ -70,11 +70,22 @@ def admin_logs():
     attempt_logs = []
 
     if view == "access":
-        access_logs = (
+        raw_access = (
             AccessLog.query.order_by(AccessLog.created_at.desc())
             .limit(200)
             .all()
         )
+        for log in raw_access:
+            access_logs.append(
+                {
+                    "time": fmt_dt(to_local(log.created_at, admin_tz)),
+                    "ip": log.ip,
+                    "path": log.path,
+                    "method": log.method,
+                    "user": log.user,
+                    "ua": log.user_agent,
+                }
+            )
     else:
         deletion_raw = ExamDeletionLog.query.order_by(ExamDeletionLog.deleted_at.desc()).limit(200).all()
         deletion_logs = [
