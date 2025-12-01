@@ -19,6 +19,7 @@
         {% endif %}
         <a href="{{ url_for('auth.logout') }}">Logout</a>
       {% endif %}
+      <button type="button" class="btn ghost small icon-only theme-toggle" id="themeToggle" aria-label="Toggle theme" title="Toggle theme">🌙</button>
     </nav>
   </header>
   <main class="container">
@@ -33,5 +34,26 @@
     {% endwith %}
     {% block content %}{% endblock %}
   </main>
+  <script>
+    (function() {
+      const btn = document.getElementById('themeToggle');
+      const root = document.documentElement;
+      const applyTheme = (mode) => {
+        const isDark = mode === 'dark';
+        root.classList.toggle('theme-dark', isDark);
+        if (btn) btn.textContent = isDark ? '☀️' : '🌙';
+        try { localStorage.setItem('theme', isDark ? 'dark' : 'light'); } catch (e) {}
+      };
+      let stored = null;
+      try { stored = localStorage.getItem('theme'); } catch (e) {}
+      applyTheme(stored === 'dark' ? 'dark' : 'light');
+      if (btn) {
+        btn.addEventListener('click', () => {
+          const next = root.classList.contains('theme-dark') ? 'light' : 'dark';
+          applyTheme(next);
+        });
+      }
+    })();
+  </script>
 </body>
 </html>
