@@ -6,16 +6,13 @@
     <h2>Edit question</h2>
   </div>
   <div class="actions">
-    <a class="btn ghost" href="{{ url_for('add_question', exam_id=exam.id) }}">Back</a>
+    <a class="btn ghost" href="{{ url_for('instructor.add_question', exam_id=exam.id) }}">Back</a>
   </div>
 </div>
 
 <form method="post" enctype="multipart/form-data" class="card">
   <label>Question text
-    <textarea name="text" rows="3" required>{{ question.text }}</textarea>
-  </label>
-  <label>Reason / Explanation (optional, shown to student after exam)
-    <textarea name="reason" rows="2" placeholder="Why this answer is correct, hints, or notes for review">{{ question.reason or "" }}</textarea>
+    <textarea name="text" id="question-editor" rows="6" required>{{ question.text|safe }}</textarea>
   </label>
   <label>Type
     <select name="qtype">
@@ -30,12 +27,22 @@
     {% endif %}
     <input type="file" name="image" accept="image/*">
   </label>
-  <p class="hint">Edit options and mark correct ones.</p>
+  <p class="hint">Edit options, attach images if needed, and mark the correct answers.</p>
   <div class="grid">
     {% for opt in options %}
       <div class="card">
         <label>Option {{ loop.index }}
           <input type="text" name="option{{ loop.index }}" value="{{ opt.text }}">
+        </label>
+        {% if opt.image_path %}
+          <div class="option-thumb"><img src="{{ url_for('static', filename=opt.image_path) }}" alt="Option image"></div>
+          <label class="choice">
+            <input type="checkbox" name="remove_option_image{{ loop.index }}">
+            <span>Remove option image</span>
+          </label>
+        {% endif %}
+        <label>Image (optional)
+          <input type="file" name="option_image{{ loop.index }}" accept="image/*">
         </label>
         <label class="choice">
           <input type="checkbox" name="correct" value="{{ loop.index }}" {% if loop.index0 in correct_indices %}checked{% endif %}>
@@ -48,6 +55,9 @@
         <label>Option {{ idx }}
           <input type="text" name="option{{ idx }}">
         </label>
+        <label>Image (optional)
+          <input type="file" name="option_image{{ idx }}" accept="image/*">
+        </label>
         <label class="choice">
           <input type="checkbox" name="correct" value="{{ idx }}">
           <span>Correct</span>
@@ -55,9 +65,37 @@
       </div>
     {% endfor %}
   </div>
+  <label>Reason / Explanation (optional, shown to student after exam)
+    <textarea name="reason" rows="2" placeholder="Why this answer is correct, hints, or notes for review">{{ question.reason or "" }}</textarea>
+  </label>
+  <label>Reason image (optional)
+    {% if question.reason_image_path %}
+      <div class="question-image"><img src="{{ url_for('static', filename=question.reason_image_path) }}" alt="Reason image"></div>
+      <label class="choice"><input type="checkbox" name="remove_reason_image"> <span>Remove reason image</span></label>
+    {% endif %}
+    <input type="file" name="reason_image" accept="image/*">
+  </label>
   <div class="actions">
-    <button type="submit">Save question</button>
-    <a class="btn ghost" href="{{ url_for('add_question', exam_id=exam.id) }}">Cancel</a>
+    <button type="submit" class="btn">Save question</button>
+    <a class="btn ghost" href="{{ url_for('instructor.add_question', exam_id=exam.id) }}">Cancel</a>
   </div>
 </form>
+<script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.3/tinymce.min.js" referrerpolicy="origin"></script>
+<script>
+  tinymce.init({
+    selector: '#question-editor',
+    menubar: false,
+    plugins: 'advlist autolink lists link image charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime media table code help wordcount directionality',
+    toolbar: 'fontsizeselect bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link image table | rtl ltr | removeformat code',
+    height: 280,
+    branding: false,
+    content_style: 'body { font-family: Arial, sans-serif; font-size: 14px; }',
+    directionality: document.dir || 'ltr',
+    paste_data_images: true,
+    automatic_uploads: true,
+    file_picker_types: 'image',
+    images_upload_url: '{{ url_for("instructor.upload_rte_image") }}',
+    images_upload_credentials: false
+  });
+</script>
 {% endblock %}

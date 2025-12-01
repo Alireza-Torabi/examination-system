@@ -4,7 +4,7 @@
   <div>
     <h2>{{ "Edit user" if user else "New user" }}</h2>
   </div>
-  <a class="btn ghost" href="{{ url_for('admin_dashboard') }}">Back</a>
+  <a class="btn ghost" href="{{ url_for('admin.admin_dashboard') }}">Back</a>
 </div>
 
 <form method="post" class="card narrow">
@@ -61,7 +61,7 @@
     <p class="hint">To force a reset, enter a new password here.</p>
   {% endif %}
   <div class="actions">
-    <button type="submit">Save</button>
+    <button type="submit" class="btn">Save</button>
   </div>
 </form>
 {% endblock %}

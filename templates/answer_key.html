@@ -6,15 +6,15 @@
     <h2>Answer key</h2>
   </div>
   <div class="actions">
-    <a class="btn" href="{{ url_for('add_question', exam_id=exam.id) }}">Add question</a>
-    <a class="btn ghost" href="{{ url_for('instructor_dashboard') }}">Back</a>
+    <a class="btn" href="{{ url_for('instructor.add_question', exam_id=exam.id) }}">Add question</a>
+    <a class="btn ghost" href="{{ url_for('instructor.instructor_dashboard') }}">Back</a>
   </div>
 </div>
 
 <form method="post" class="card">
   {% for question in exam.questions %}
     <div class="review-item">
-      <p class="question-text">{{ loop.index }}. {{ question.text }} <span class="hint">({{ question.qtype }})</span></p>
+      <p class="question-text">{{ loop.index }}. {{ question.text|normalize_imgs|safe }} <span class="hint">({{ question.qtype }})</span></p>
       <div class="choices">
         {% for choice in question.choices %}
           <label class="choice">
@@ -24,14 +24,20 @@
               value="{{ choice.id }}"
               {% if choice.is_correct %}checked{% endif %}
             >
-            <span>{{ choice.text }}</span>
+            <div class="choice-body">
+              <span class="choice-text">{{ choice.text }}</span>
+              {% set cimg = choice.image_path|img_url %}
+              {% if cimg %}
+                <img src="{{ cimg }}" alt="Option image" class="choice-image">
+              {% endif %}
+            </div>
           </label>
         {% endfor %}
       </div>
     </div>
   {% endfor %}
   <div class="actions">
-    <button type="submit">Save answer key</button>
+    <button type="submit" class="btn">Save answer key</button>
   </div>
 </form>
 {% endblock %}

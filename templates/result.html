@@ -6,16 +6,17 @@
       <h2>Result: {{ attempt.exam.title }}</h2>
       <p class="hint">Started: {{ attempt.started_at }} | Submitted: {{ attempt.submitted_at }}</p>
     </div>
-    <button onclick="window.print()">Print</button>
+    <button onclick="window.print()" class="btn ghost">Print</button>
   </div>
   <p><strong>Score:</strong> {{ attempt.score_percent }}% ({{ attempt.num_correct }} / {{ attempt.num_questions }})</p>
   <h3>Your answers</h3>
   {% for question in questions %}
-    {% set q_rtl = is_rtl(question.text) %}
+    {% set q_rtl = is_rtl(question.text|striptags) %}
     <div class="review-item" dir="{{ 'rtl' if q_rtl else 'ltr' }}">
-      <p class="question-text">{{ loop.index }}. {{ question.text }}</p>
-      {% if question.image_path %}
-        <div class="question-image"><img src="{{ url_for('static', filename=question.image_path) }}" alt="Question image"></div>
+      <p class="question-text">{{ loop.index }}. {{ question.text|normalize_imgs|safe }}</p>
+      {% set qimg = question.image_path|img_url %}
+      {% if qimg %}
+        <div class="question-image"><img src="{{ qimg }}" alt="Question image"></div>
       {% endif %}
       <ul class="plain" dir="{{ 'rtl' if q_rtl else 'ltr' }}">
         {% set selected = answers_map.get(question.id) or [] %}
@@ -26,6 +27,9 @@
           <li class="{% if correct %}correct{% elif chosen %}wrong{% else %}neutral{% endif %}">
             {{ letters[loop.index0] }}. {% if chosen %}(chosen){% elif selected|length == 0 %}<span class="hint red"><strong>(unanswered)</strong></span>{% else %}( ){% endif %} {{ choice.text }}
             {% if correct %}(correct){% endif %}
+            {% if choice.image_path %}
+              <img src="{{ url_for('static', filename=choice.image_path) }}" alt="Option image" class="choice-image inline">
+            {% endif %}
           </li>
         {% endfor %}
         {% if selected|length == 0 %}
@@ -34,6 +38,9 @@
       </ul>
       {% if question.reason %}
         <p class="hint">Reason: {{ question.reason }}</p>
+      {% endif %}
+      {% if question.reason_image_path %}
+        <div class="question-image"><img src="{{ url_for('static', filename=question.reason_image_path) }}" alt="Reason image"></div>
       {% endif %}
     </div>
   {% endfor %}

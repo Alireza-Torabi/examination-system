@@ -1,18 +1,24 @@
 {% extends "layout.html" %}
 {% block content %}
+{% set preview = is_preview|default(False) %}
 <div class="toolbar">
   <div>
     <p class="hint">Exam: {{ attempt.exam.title }}</p>
     <h2>Question {{ index }} of {{ total }}</h2>
   </div>
-  <div class="pill" dir="ltr">Time left: <span id="timer" class="mono" data-seconds="{{ time_left_seconds }}" data-total="{{ total_seconds }}" data-per-question="{{ per_question_seconds }}">{{ time_left_seconds }}s</span></div>
+  {% if not preview %}
+    <div class="pill" dir="ltr">Time left: <span id="timer" class="mono" data-seconds="{{ time_left_seconds }}" data-total="{{ total_seconds }}" data-per-question="{{ per_question_seconds }}">{{ time_left_seconds }}s</span></div>
+  {% else %}
+    <div class="pill" dir="ltr">Preview</div>
+  {% endif %}
 </div>
 
-{% set q_rtl = is_rtl(question.text) %}
-<form method="post" class="card" dir="{{ 'rtl' if q_rtl else 'ltr' }}">
-  <p class="question-text">{{ question.text }}</p>
-  {% if question.image_path %}
-    <div class="question-image"><img src="{{ url_for('static', filename=question.image_path) }}" alt="Question image"></div>
+{% set q_rtl = is_rtl(question.text|striptags) %}
+<form method="post" class="card" dir="{{ 'rtl' if q_rtl else 'ltr' }}" {% if preview %}onsubmit="return false;"{% endif %}>
+  <p class="question-text">{{ question.text|normalize_imgs|safe }}</p>
+  {% set qimg = question.image_path|img_url %}
+  {% if qimg %}
+    <div class="question-image"><img src="{{ qimg }}" alt="Question image"></div>
   {% endif %}
   <div class="choices" dir="{{ 'rtl' if q_rtl else 'ltr' }}">
     {% set letters = ['A','B','C','D','E','F'] %}
@@ -25,90 +31,98 @@
           value="{{ choice.id }}"
           {% if choice.id in selected_ids %}checked{% endif %}
         >
-        <span><strong>{{ letters[loop.index0] }}.</strong> {{ choice.text }}</span>
+        <div class="choice-body">
+          <span class="choice-text"><strong>{{ letters[loop.index0] }}.</strong> {{ choice.text }}</span>
+          {% set cimg = choice.image_path|img_url %}
+          {% if cimg %}
+            <img src="{{ cimg }}" alt="Option image" class="choice-image">
+          {% endif %}
+        </div>
       </label>
     {% endfor %}
   </div>
   <div class="actions">
     {% if index > 1 %}
-      <button type="submit" name="action" value="previous" class="ghost">Previous</button>
+      <button type="{{ 'button' if preview else 'submit' }}" name="action" value="previous" class="btn ghost" {% if preview %}disabled{% endif %}>Previous</button>
     {% endif %}
     {% if index < total %}
-      <button type="submit" name="action" value="next">Save &amp; Next</button>
+      <button type="{{ 'button' if preview else 'submit' }}" name="action" value="next" class="btn" {% if preview %}disabled{% endif %}>Save &amp; Next</button>
     {% else %}
-      <button type="submit" name="action" value="review">Save &amp; Review</button>
+      <button type="{{ 'button' if preview else 'submit' }}" name="action" value="review" class="btn" {% if preview %}disabled{% endif %}>Save &amp; Review</button>
     {% endif %}
-    <button type="submit" formaction="{{ url_for('submit_attempt', attempt_id=attempt.id) }}" formmethod="post" class="ghost">Finish now</button>
+    <button type="{{ 'button' if preview else 'submit' }}" formaction="{{ url_for('student.submit_attempt', attempt_id=attempt.id) }}" formmethod="post" class="btn ghost" {% if preview %}disabled{% endif %}>Finish now</button>
   </div>
   <p id="overTimeMsg" class="warning" style="display:none;"></p>
 </form>
-<form id="autoSubmitForm" method="post" action="{{ url_for('submit_attempt', attempt_id=attempt.id) }}"></form>
+{% if not preview %}
+  <form id="autoSubmitForm" method="post" action="{{ url_for('student.submit_attempt', attempt_id=attempt.id) }}"></form>
 
-<script>
-  const timerEl = document.getElementById('timer');
-  if (timerEl) {
-    let remaining = parseInt(timerEl.dataset.seconds, 10) || 0;
-    const total = parseInt(timerEl.dataset.total, 10) || remaining || 1;
-    const perQuestion = parseInt(timerEl.dataset.perQuestion, 10) || 0;
-    const card = document.querySelector('form.card');
-    const warnMsg = document.getElementById('overTimeMsg');
-    let spent = 0;
-    let finished = false;
-    const submitExam = () => {
-      if (finished) return;
-      finished = true;
-      alert("Time is up. Your exam will be submitted automatically.");
-      const form = document.getElementById('autoSubmitForm');
-      if (form) form.submit();
-    };
-    const tick = () => {
-      if (remaining <= 0) {
-        timerEl.textContent = "00:00";
-        submitExam();
-        return;
-      }
-      remaining -= 1;
-      const mins = Math.floor(remaining / 60);
-      const secs = remaining % 60;
-      timerEl.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-      const pct = remaining / total;
-      timerEl.classList.remove('warn', 'danger');
-      if (pct <= 0.1) {
-        timerEl.classList.add('danger', 'blink');
-      } else if (pct <= 0.2) {
-        timerEl.classList.add('warn');
-      }
-      if (perQuestion && card && warnMsg) {
-        spent += 1;
-        if (spent >= perQuestion) {
-          card.classList.add('overtime');
-          warnMsg.style.display = 'block';
-          warnMsg.textContent = "You are spending too much time on this question.";
+  <script>
+    const timerEl = document.getElementById('timer');
+    if (timerEl) {
+      let remaining = parseInt(timerEl.dataset.seconds, 10) || 0;
+      const total = parseInt(timerEl.dataset.total, 10) || remaining || 1;
+      const perQuestion = parseInt(timerEl.dataset.perQuestion, 10) || 0;
+      const card = document.querySelector('form.card');
+      const warnMsg = document.getElementById('overTimeMsg');
+      let spent = 0;
+      let finished = false;
+      const submitExam = () => {
+        if (finished) return;
+        finished = true;
+        alert("Time is up. Your exam will be submitted automatically.");
+        const form = document.getElementById('autoSubmitForm');
+        if (form) form.submit();
+      };
+      const tick = () => {
+        if (remaining <= 0) {
+          timerEl.textContent = "00:00";
+          submitExam();
+          return;
         }
-      }
-      if (remaining > 0) setTimeout(tick, 1000); else submitExam();
-    };
-    tick();
-  }
+        remaining -= 1;
+        const mins = Math.floor(remaining / 60);
+        const secs = remaining % 60;
+        timerEl.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        const pct = remaining / total;
+        timerEl.classList.remove('warn', 'danger');
+        if (pct <= 0.1) {
+          timerEl.classList.add('danger', 'blink');
+        } else if (pct <= 0.2) {
+          timerEl.classList.add('warn');
+        }
+        if (perQuestion && card && warnMsg) {
+          spent += 1;
+          if (spent >= perQuestion) {
+            card.classList.add('overtime');
+            warnMsg.style.display = 'block';
+            warnMsg.textContent = "You are spending too much time on this question.";
+          }
+        }
+        if (remaining > 0) setTimeout(tick, 1000); else submitExam();
+      };
+      tick();
+    }
 
-  // Clipboard guard: warn on first copy, close exam on second copy
-  (function() {
-    const storageKey = `copyWarnings-${attempt.id}`;
-    let copyCount = 0;
-    try {
-      copyCount = parseInt(sessionStorage.getItem(storageKey), 10) || 0;
-    } catch (e) {}
-    const warnOnce = () => {
-      copyCount += 1;
-      try { sessionStorage.setItem(storageKey, copyCount); } catch (e) {}
-      if (copyCount === 1) {
-        alert("Warning: Do not copy exam text or use AI/chatbots for answers. Repeating this will close your exam.");
-      } else if (copyCount >= 2) {
-        alert("Exam closed due to suspected AI/chatbot use.");
-        window.location.href = "{{ url_for('submit_attempt', attempt_id=attempt.id) }}";
-      }
-    };
-    document.addEventListener('copy', warnOnce, { capture: true });
-  })();
-</script>
+    // Clipboard guard: warn on first copy, close exam on second copy
+    (function() {
+      const storageKey = `copyWarnings-${attempt.id}`;
+      let copyCount = 0;
+      try {
+        copyCount = parseInt(sessionStorage.getItem(storageKey), 10) || 0;
+      } catch (e) {}
+      const warnOnce = () => {
+        copyCount += 1;
+        try { sessionStorage.setItem(storageKey, copyCount); } catch (e) {}
+        if (copyCount === 1) {
+          alert("Warning: Do not copy exam text or use AI/chatbots for answers. Repeating this will close your exam.");
+        } else if (copyCount >= 2) {
+          alert("Exam closed due to suspected AI/chatbot use.");
+          window.location.href = "{{ url_for('student.submit_attempt', attempt_id=attempt.id) }}";
+        }
+      };
+      document.addEventListener('copy', warnOnce, { capture: true });
+    })();
+  </script>
+{% endif %}
 {% endblock %}
