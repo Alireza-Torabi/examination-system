@@ -6,8 +6,8 @@
     <p class="hint">Current time ({{ user_timezone }}): {{ now.strftime("%Y-%m-%d %H:%M") }}</p>
   </div>
   <div class="actions">
-    <a class="btn" href="{{ url_for('create_exam') }}">Create Exam</a>
-    <a class="btn ghost" href="{{ url_for('excel_template') }}">Download Excel Template</a>
+    <a class="btn" href="{{ url_for('instructor.create_exam') }}">Create Exam</a>
+    <a class="btn ghost" href="{{ url_for('instructor.excel_template') }}">Download Excel Template</a>
   </div>
 </div>
 
@@ -30,15 +30,15 @@
           <p class="hint">Answer key: missing selections</p>
         {% endif %}
         <div class="actions">
-          <a class="btn" href="{{ url_for('add_question', exam_id=exam.id) }}">Add questions (UI)</a>
-          <a class="btn ghost" href="{{ url_for('answer_key', exam_id=exam.id) }}">Edit answer key</a>
-          <a class="btn ghost" href="{{ url_for('edit_exam', exam_id=exam.id) }}">Edit exam</a>
-          <form method="post" action="{{ url_for('toggle_close_exam', exam_id=exam.id) }}" style="display:inline;">
+          <a class="btn" href="{{ url_for('instructor.add_question', exam_id=exam.id) }}">Add questions (UI)</a>
+          <a class="btn ghost" href="{{ url_for('instructor.answer_key', exam_id=exam.id) }}">Edit answer key</a>
+          <a class="btn ghost" href="{{ url_for('instructor.edit_exam', exam_id=exam.id) }}">Edit exam</a>
+          <form method="post" action="{{ url_for('instructor.toggle_close_exam', exam_id=exam.id) }}" style="display:inline;">
             <button type="submit" class="btn ghost">{{ "Reopen" if exam.is_closed else "Close" }} exam</button>
           </form>
-          <a class="btn ghost" href="{{ url_for('export_exam', exam_id=exam.id) }}">Export Excel</a>
-          <a class="btn ghost" href="{{ url_for('instructor_exam_results', exam_id=exam.id) }}">View results</a>
-          <form method="post" action="{{ url_for('delete_exam', exam_id=exam.id) }}" onsubmit="return confirm('Delete this exam?');" style="display:inline;">
+          <a class="btn ghost" href="{{ url_for('instructor.export_exam', exam_id=exam.id) }}">Export Excel</a>
+          <a class="btn ghost" href="{{ url_for('instructor.instructor_exam_results', exam_id=exam.id) }}">View results</a>
+          <form method="post" action="{{ url_for('instructor.delete_exam', exam_id=exam.id) }}" onsubmit="return confirm('Delete this exam?');" style="display:inline;">
             <button type="submit" class="btn ghost">Delete</button>
           </form>
         </div>

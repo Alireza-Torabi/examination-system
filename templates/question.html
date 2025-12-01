@@ -50,12 +50,12 @@
     {% else %}
       <button type="{{ 'button' if preview else 'submit' }}" name="action" value="review" {% if preview %}disabled{% endif %}>Save &amp; Review</button>
     {% endif %}
-    <button type="{{ 'button' if preview else 'submit' }}" formaction="{{ url_for('submit_attempt', attempt_id=attempt.id) }}" formmethod="post" class="ghost" {% if preview %}disabled{% endif %}>Finish now</button>
+    <button type="{{ 'button' if preview else 'submit' }}" formaction="{{ url_for('student.submit_attempt', attempt_id=attempt.id) }}" formmethod="post" class="ghost" {% if preview %}disabled{% endif %}>Finish now</button>
   </div>
   <p id="overTimeMsg" class="warning" style="display:none;"></p>
 </form>
 {% if not preview %}
-  <form id="autoSubmitForm" method="post" action="{{ url_for('submit_attempt', attempt_id=attempt.id) }}"></form>
+  <form id="autoSubmitForm" method="post" action="{{ url_for('student.submit_attempt', attempt_id=attempt.id) }}"></form>
 
   <script>
     const timerEl = document.getElementById('timer');
@@ -118,7 +118,7 @@
           alert("Warning: Do not copy exam text or use AI/chatbots for answers. Repeating this will close your exam.");
         } else if (copyCount >= 2) {
           alert("Exam closed due to suspected AI/chatbot use.");
-          window.location.href = "{{ url_for('submit_attempt', attempt_id=attempt.id) }}";
+          window.location.href = "{{ url_for('student.submit_attempt', attempt_id=attempt.id) }}";
         }
       };
       document.addEventListener('copy', warnOnce, { capture: true });

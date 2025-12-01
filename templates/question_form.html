@@ -6,8 +6,8 @@
     <h2>Add question</h2>
   </div>
   <div class="actions">
-    <a class="btn ghost" href="{{ url_for('instructor_dashboard') }}">Back</a>
-    <a class="btn ghost" href="{{ url_for('answer_key', exam_id=exam.id) }}">Answer key</a>
+    <a class="btn ghost" href="{{ url_for('instructor.instructor_dashboard') }}">Back</a>
+    <a class="btn ghost" href="{{ url_for('instructor.answer_key', exam_id=exam.id) }}">Answer key</a>
   </div>
 </div>
 
@@ -69,7 +69,7 @@
   </div>
   <div class="actions">
     <button type="submit" name="action" value="import_excel">Upload &amp; append</button>
-    <a class="btn ghost" href="{{ url_for('excel_template') }}" target="_blank">Download template</a>
+    <a class="btn ghost" href="{{ url_for('instructor.excel_template') }}" target="_blank">Download template</a>
   </div>
 </form>
 
@@ -128,7 +128,7 @@
                 {% endfor %}
               </ul>
               <div class="row-actions">
-                <a href="{{ url_for('edit_question', question_id=question.id) }}" class="btn ghost small icon-btn">
+                <a href="{{ url_for('instructor.edit_question', question_id=question.id) }}" class="btn ghost small icon-btn">
                   <span class="icon">✏️</span><span>Edit</span>
                 </a>
                 <button type="submit" name="delete_one" value="{{ question.id }}" class="ghost danger small icon-btn confirm-delete" data-confirm="Delete this question?">
@@ -171,7 +171,7 @@
     paste_data_images: true,
     automatic_uploads: true,
     file_picker_types: 'image',
-    images_upload_url: '{{ url_for("upload_rte_image") }}',
+    images_upload_url: '{{ url_for("instructor.upload_rte_image") }}',
     images_upload_credentials: false
   });
 </script>
@@ -217,7 +217,7 @@
       const qid = btn.dataset.questionId;
       if (!qid) return;
       try {
-        const res = await fetch(`{{ url_for('preview_question', question_id=0) }}`.replace('0', qid) + '?partial=1');
+        const res = await fetch(`{{ url_for('instructor.preview_question', question_id=0) }}`.replace('0', qid) + '?partial=1');
         if (!res.ok) throw new Error('Failed to load preview');
         const html = await res.text();
         modalContent.innerHTML = html;

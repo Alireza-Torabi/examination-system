@@ -10,13 +10,13 @@
     <div class="brand">Exam Center</div>
     <nav>
       {% if session.get('user_id') %}
-        <a href="{{ url_for('index') }}">Home</a>
-        <a href="{{ url_for('settings') }}">Settings</a>
+        <a href="{{ url_for('core.index') }}">Home</a>
+        <a href="{{ url_for('settings.settings') }}">Settings</a>
         {% if current_user and current_user.role == 'admin' %}
-          <a href="{{ url_for('admin_dashboard') }}">Admin</a>
-          <a href="{{ url_for('admin_logs') }}">Log</a>
+          <a href="{{ url_for('admin.admin_dashboard') }}">Admin</a>
+          <a href="{{ url_for('admin.admin_logs') }}">Log</a>
         {% endif %}
-        <a href="{{ url_for('logout') }}">Logout</a>
+        <a href="{{ url_for('auth.logout') }}">Logout</a>
       {% endif %}
     </nav>
   </header>

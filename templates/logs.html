@@ -6,8 +6,8 @@
     <p class="hint">Application and access logs</p>
   </div>
   <div class="actions">
-    <a class="btn {% if view != 'access' %}ghost{% endif %}" href="{{ url_for('admin_logs', view='app') }}">App logs</a>
-    <a class="btn {% if view == 'access' %}ghost{% endif %}" href="{{ url_for('admin_logs', view='access') }}">Access logs</a>
+    <a class="btn {% if view != 'access' %}ghost{% endif %}" href="{{ url_for('admin.admin_logs', view='app') }}">App logs</a>
+    <a class="btn {% if view == 'access' %}ghost{% endif %}" href="{{ url_for('admin.admin_logs', view='access') }}">Access logs</a>
   </div>
 </div>
 

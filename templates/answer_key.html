@@ -6,8 +6,8 @@
     <h2>Answer key</h2>
   </div>
   <div class="actions">
-    <a class="btn" href="{{ url_for('add_question', exam_id=exam.id) }}">Add question</a>
-    <a class="btn ghost" href="{{ url_for('instructor_dashboard') }}">Back</a>
+    <a class="btn" href="{{ url_for('instructor.add_question', exam_id=exam.id) }}">Add question</a>
+    <a class="btn ghost" href="{{ url_for('instructor.instructor_dashboard') }}">Back</a>
   </div>
 </div>
 

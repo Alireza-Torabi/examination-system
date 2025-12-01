@@ -25,17 +25,17 @@
           <p dir="ltr"><strong>Window:</strong> {{ item.start_local }} - {{ item.end_local }} ({{ user_timezone }})</p>
           <p><strong>Duration:</strong> {{ exam.duration_minutes }} minutes</p>
           {% if status == "active" %}
-            <a class="btn" href="{{ url_for('start_exam', exam_id=exam.id) }}">Start / Resume</a>
+            <a class="btn" href="{{ url_for('student.start_exam', exam_id=exam.id) }}">Start / Resume</a>
           {% elif status == "completed_active" %}
             <div class="actions">
-              <a class="btn" href="{{ url_for('start_exam', exam_id=exam.id) }}">Retake</a>
-              <a class="btn ghost" href="{{ url_for('view_result', attempt_id=attempt.id) }}">View last result</a>
+              <a class="btn" href="{{ url_for('student.start_exam', exam_id=exam.id) }}">Retake</a>
+              <a class="btn ghost" href="{{ url_for('student.view_result', attempt_id=attempt.id) }}">View last result</a>
             </div>
           {% elif status == "upcoming" %}
             <p class="hint">Starts in <span class="countdown" data-seconds="{{ item.countdown_seconds }}">...</span></p>
             <button class="btn disabled" disabled>Not started yet</button>
           {% elif status == "completed" %}
-            <a class="btn ghost" href="{{ url_for('view_result', attempt_id=attempt.id) }}">View result ({{ attempt.score_percent }}%)</a>
+            <a class="btn ghost" href="{{ url_for('student.view_result', attempt_id=attempt.id) }}">View result ({{ attempt.score_percent }}%)</a>
           {% elif status == "not_ready" %}
             <button class="btn disabled" disabled>Exam not ready</button>
             <p class="hint">Awaiting instructor to publish answers.</p>
@@ -73,9 +73,9 @@
             <td>{% if attempt.submitted_at %}{{ attempt.score_percent }}%{% else %}In progress{% endif %}</td>
             <td>
               {% if attempt.submitted_at %}
-                <a href="{{ url_for('view_result', attempt_id=attempt.id) }}">View result</a>
+                <a href="{{ url_for('student.view_result', attempt_id=attempt.id) }}">View result</a>
               {% else %}
-                <a href="{{ url_for('show_question', attempt_id=attempt.id, index=1) }}">Resume</a>
+                <a href="{{ url_for('student.show_question', attempt_id=attempt.id, index=1) }}">Resume</a>
               {% endif %}
             </td>
           </tr>

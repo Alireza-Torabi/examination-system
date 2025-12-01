@@ -6,8 +6,8 @@
     <p class="hint">Full access across tenants. Timezone: {{ admin_tz }}</p>
   </div>
   <div class="actions">
-    <a class="btn" href="{{ url_for('admin_user_new') }}">Add user</a>
-    <a class="btn ghost" href="{{ url_for('admin_tenant_new') }}">Add tenant</a>
+    <a class="btn" href="{{ url_for('admin.admin_user_new') }}">Add user</a>
+    <a class="btn ghost" href="{{ url_for('admin.admin_tenant_new') }}">Add tenant</a>
   </div>
 </div>
 
@@ -72,7 +72,7 @@
 <div class="card">
   <div class="toolbar no-space">
     <h3>Users</h3>
-    <a class="btn ghost" href="{{ url_for('admin_user_new') }}">New user</a>
+    <a class="btn ghost" href="{{ url_for('admin.admin_user_new') }}">New user</a>
   </div>
   <table class="table">
     <thead>
@@ -93,7 +93,7 @@
           <td>{{ u.role }}</td>
           <td>{{ u.tenant.slug }}</td>
           <td>{{ u.timezone or "-" }}</td>
-          <td><a href="{{ url_for('admin_user_edit', user_id=u.id) }}">Edit</a></td>
+          <td><a href="{{ url_for('admin.admin_user_edit', user_id=u.id) }}">Edit</a></td>
         </tr>
       {% endfor %}
     </tbody>
@@ -123,7 +123,7 @@
           <td>{{ ex.questions|length }}</td>
           <td>
             {% if not ex.deleted_at %}
-              <form method="post" action="{{ url_for('delete_exam', exam_id=ex.id) }}" onsubmit="return confirm('Delete this exam?');">
+              <form method="post" action="{{ url_for('instructor.delete_exam', exam_id=ex.id) }}" onsubmit="return confirm('Delete this exam?');">
                 <button type="submit" class="btn ghost">Delete</button>
               </form>
             {% else %}

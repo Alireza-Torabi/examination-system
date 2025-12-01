@@ -29,11 +29,11 @@
           </li>
         {% endfor %}
       </ul>
-      <a class="ghost" href="{{ url_for('show_question', attempt_id=attempt.id, index=loop.index) }}">Edit</a>
+      <a class="ghost" href="{{ url_for('student.show_question', attempt_id=attempt.id, index=loop.index) }}">Edit</a>
       <hr>
     </div>
   {% endfor %}
-  <form method="post" action="{{ url_for('submit_attempt', attempt_id=attempt.id) }}">
+  <form method="post" action="{{ url_for('student.submit_attempt', attempt_id=attempt.id) }}">
     <button type="submit">Submit exam</button>
   </form>
 </div>
