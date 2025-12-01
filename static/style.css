@@ -99,6 +99,14 @@ button:hover, .btn:hover { filter: brightness(0.95); }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
 .table { width: 100%; border-collapse: collapse; }
 .table th, .table td { padding: 8px; border-bottom: 1px solid #e2e6ec; text-align: left; }
+.table.compact th, .table.compact td { padding: 6px 8px; }
+.logs-table { table-layout: fixed; }
+.logs-table th:nth-child(1) { width: 170px; }  /* Time */
+.logs-table th:nth-child(2) { width: 130px; }  /* IP */
+.logs-table th:nth-child(4) { width: 90px; }   /* Method */
+.logs-table th:nth-child(5) { width: 140px; }  /* User */
+.logs-table .path-cell { word-break: break-all; width: 30%; }
+.logs-table .ua-cell { font-size: 0.85em; word-break: break-all; }
 .question-text { font-weight: 700; }
 .form-card, .review-item, .result-item { direction: ltr; }
 [dir="rtl"] .question-text { direction: rtl; text-align: right; }
@@ -160,6 +168,8 @@ img.option-thumb { display: inline-block; vertical-align: middle; margin-left: 6
 .modal-close { position: absolute; top: 10px; right: 10px; background: transparent; border: none; font-size: 24px; cursor: pointer; }
 .modal-card .toolbar { margin-bottom: 8px; }
 .modal-card .card { margin-bottom: 0; }
+.filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; align-items: end; margin: 8px 0 12px; }
+.filters .actions { justify-content: flex-start; gap: 6px; }
 @media print {
   .topbar, .actions, .btn, button { display: none !important; }
   body { background: #fff; }

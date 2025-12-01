@@ -70,6 +70,7 @@ manage.py              # Flask CLI
 3. Initialize DB once:
    ```bash
    flask --app app initdb
+   # or: python3 app.py initdb
    ```
 4. Run with Gunicorn:
    ```bash
@@ -79,5 +80,6 @@ manage.py              # Flask CLI
 
 ## Notes
 - File uploads land in `UPLOAD_FOLDER`; ensure the directory is writable.
+- Before starting any long-running service (e.g., systemd via `install_service.sh`), run `python3 app.py initdb` once to create/upgrade the database.
 - Blueprints keep routes compatible with prior paths, but template `url_for` calls use namespaced endpoints (e.g., `auth.login`, `core.index`, `instructor.*`, `student.*`, `admin.*`, `settings.*`).
 - For database upgrades beyond the built-in `migrate_schema`, consider adding Flask-Migrate/Alembic.***

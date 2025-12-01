@@ -1,4 +1,5 @@
 from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, send_file, url_for
+from sqlalchemy import or_
 
 from app.extensions import db
 from app.models import AccessLog, Attempt, Exam, ExamDeletionLog, Tenant, User
@@ -68,13 +69,47 @@ def admin_logs():
     access_logs = []
     deletion_logs = []
     attempt_logs = []
+    filters: dict[str, str] = {}
 
     if view == "access":
-        access_logs = (
-            AccessLog.query.order_by(AccessLog.created_at.desc())
-            .limit(200)
-            .all()
-        )
+        search = request.args.get("q", "").strip()
+        ip_filter = request.args.get("ip", "").strip()
+        method_filter = request.args.get("method", "").strip().upper()
+        user_filter = request.args.get("user", "").strip()
+
+        access_query = AccessLog.query
+        if ip_filter:
+            access_query = access_query.filter(AccessLog.ip.ilike(f"%{ip_filter}%"))
+        if method_filter:
+            access_query = access_query.filter(AccessLog.method.ilike(method_filter))
+        if search:
+            access_query = access_query.filter(
+                or_(
+                    AccessLog.path.ilike(f"%{search}%"),
+                    AccessLog.user_agent.ilike(f"%{search}%"),
+                )
+            )
+        if user_filter:
+            access_query = access_query.join(User, isouter=True).filter(User.username.ilike(f"%{user_filter}%"))
+
+        raw_access = access_query.order_by(AccessLog.created_at.desc()).limit(300).all()
+        for log in raw_access:
+            access_logs.append(
+                {
+                    "time": fmt_dt(to_local(log.created_at, admin_tz)),
+                    "ip": log.ip,
+                    "path": log.path,
+                    "method": log.method,
+                    "user": log.user,
+                    "ua": log.user_agent,
+                }
+            )
+        filters = {
+            "q": search,
+            "ip": ip_filter,
+            "method": method_filter,
+            "user": user_filter,
+        }
     else:
         deletion_raw = ExamDeletionLog.query.order_by(ExamDeletionLog.deleted_at.desc()).limit(200).all()
         deletion_logs = [
@@ -97,6 +132,7 @@ def admin_logs():
         deletion_logs=deletion_logs,
         attempt_logs=attempt_logs,
         view=view,
+        filters=filters,
     )
 
 
