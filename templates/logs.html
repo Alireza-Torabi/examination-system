@@ -15,6 +15,31 @@
   <div class="card">
     <h3>Access logs</h3>
     <p class="hint">Click IP to fetch GeoIP (via free API)</p>
+    <form method="get" class="filters">
+      <input type="hidden" name="view" value="access">
+      <label>Search (path / UA)
+        <input type="text" name="q" value="{{ filters.get('q', '') }}" placeholder="/admin or chrome">
+      </label>
+      <label>IP
+        <input type="text" name="ip" value="{{ filters.get('ip', '') }}" placeholder="192.168.1.1">
+      </label>
+      <label>Method
+        <select name="method">
+          {% set m = filters.get('method', '') %}
+          <option value="">Any</option>
+          {% for opt in ["GET","POST","PUT","DELETE","PATCH","OPTIONS"] %}
+            <option value="{{ opt }}" {% if m==opt %}selected{% endif %}>{{ opt }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>User (username contains)
+        <input type="text" name="user" value="{{ filters.get('user', '') }}" placeholder="admin">
+      </label>
+      <div class="actions">
+        <button type="submit" class="btn">Apply</button>
+        <a class="btn ghost" href="{{ url_for('admin.admin_logs', view='access') }}">Clear</a>
+      </div>
+    </form>
     <table class="table logs-table compact">
       <thead>
         <tr>

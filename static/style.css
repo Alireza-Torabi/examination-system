@@ -168,6 +168,8 @@ img.option-thumb { display: inline-block; vertical-align: middle; margin-left: 6
 .modal-close { position: absolute; top: 10px; right: 10px; background: transparent; border: none; font-size: 24px; cursor: pointer; }
 .modal-card .toolbar { margin-bottom: 8px; }
 .modal-card .card { margin-bottom: 0; }
+.filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; align-items: end; margin: 8px 0 12px; }
+.filters .actions { justify-content: flex-start; gap: 6px; }
 @media print {
   .topbar, .actions, .btn, button { display: none !important; }
   body { background: #fff; }
