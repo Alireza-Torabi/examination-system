@@ -13,6 +13,9 @@ APP_HOME="${APP_HOME:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 VENV_DIR="${VENV_DIR:-$APP_HOME/.venv}"
 ENV_FILE="${ENV_FILE:-/etc/${SERVICE_NAME}.env}"
 SERVICE_PATH="/etc/systemd/system/${SERVICE_NAME}.service"
+INSTANCE_DIR="${INSTANCE_DIR:-$APP_HOME/instance}"
+UPLOAD_DIR="${UPLOAD_DIR:-$APP_HOME/static/uploads}"
+BACKUP_DIR="${BACKUP_DIR:-$INSTANCE_DIR/backups}"
 
 if [[ $EUID -ne 0 ]]; then
   echo "Run as root (e.g. sudo) to install the service." >&2
@@ -30,6 +33,7 @@ if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
 fi
 
 mkdir -p "$APP_HOME" "$(dirname "$SERVICE_PATH")"
+mkdir -p "$INSTANCE_DIR" "$UPLOAD_DIR" "$BACKUP_DIR"
 
 "$PYTHON_BIN" -m venv "$VENV_DIR"
 "$VENV_DIR/bin/pip" install --upgrade pip
@@ -41,6 +45,9 @@ if [[ ! -f "$ENV_FILE" ]]; then
 # SECRET_KEY=change-me
 # FLASK_ENV=production
 PORT=${APP_PORT}
+UPLOAD_FOLDER=${UPLOAD_DIR}
+BACKUP_FOLDER=${BACKUP_DIR}
+# DATABASE_URL=sqlite:///${INSTANCE_DIR}/exam_app.db
 EOF
   chown "$APP_USER":"$APP_GROUP" "$ENV_FILE"
   chmod 640 "$ENV_FILE"
@@ -49,6 +56,12 @@ else
     sed -i "s/^PORT=.*/PORT=${APP_PORT}/" "$ENV_FILE"
   else
     echo "PORT=${APP_PORT}" >> "$ENV_FILE"
+  fi
+  if ! grep -q '^UPLOAD_FOLDER=' "$ENV_FILE"; then
+    echo "UPLOAD_FOLDER=${UPLOAD_DIR}" >> "$ENV_FILE"
+  fi
+  if ! grep -q '^BACKUP_FOLDER=' "$ENV_FILE"; then
+    echo "BACKUP_FOLDER=${BACKUP_DIR}" >> "$ENV_FILE"
   fi
 fi
 
@@ -63,7 +76,7 @@ Group=${APP_GROUP}
 WorkingDirectory=${APP_HOME}
 Environment=PORT=${APP_PORT}
 EnvironmentFile=-${ENV_FILE}
-ExecStart=${VENV_DIR}/bin/gunicorn --workers=${GUNICORN_WORKERS} --bind 0.0.0.0:\${PORT} app:app
+ExecStart=${VENV_DIR}/bin/gunicorn --workers=${GUNICORN_WORKERS} --bind 0.0.0.0:\${PORT} wsgi:app
 Restart=on-failure
 RestartSec=5
 TimeoutStartSec=30
