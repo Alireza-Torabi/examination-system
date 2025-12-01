@@ -11,9 +11,9 @@
   </div>
 </div>
 
-<form method="post" class="card">
+<form method="post" enctype="multipart/form-data" class="card">
   <label>Question text
-    <textarea name="text" rows="3" required></textarea>
+    <textarea name="text" id="question-editor" rows="6" required></textarea>
   </label>
   <label>Type
     <select name="qtype">
@@ -21,10 +21,7 @@
       <option value="multiple">Multiple choice</option>
     </select>
   </label>
-  <label>Reason / Explanation (optional, shown to student after exam)
-    <textarea name="reason" rows="2" placeholder="Why this answer is correct, hints, or notes for review"></textarea>
-  </label>
-  <p class="hint">Fill 2-6 options. Mark the correct ones below.</p>
+  <p class="hint">Fill 2-6 options. You can attach an image to each option and mark the correct ones below.</p>
   <label>Image (optional)
     <input type="file" name="image" accept="image/*">
   </label>
@@ -34,6 +31,9 @@
         <label>Option {{ idx }}
           <input type="text" name="option{{ idx }}">
         </label>
+        <label>Image (optional)
+          <input type="file" name="option_image{{ idx }}" accept="image/*">
+        </label>
         <label class="choice">
           <input type="checkbox" name="correct" value="{{ idx }}">
           <span>Correct</span>
@@ -41,36 +41,203 @@
       </div>
     {% endfor %}
   </div>
+  <label>Reason / Explanation (optional, shown to student after exam)
+    <textarea name="reason" rows="2" placeholder="Why this answer is correct, hints, or notes for review"></textarea>
+  </label>
+  <label>Reason image (optional)
+    <input type="file" name="reason_image" accept="image/*">
+  </label>
   <div class="actions">
     <button type="submit" name="action" value="add_more">Save &amp; add another</button>
     <button type="submit" name="action" value="finish" class="ghost">Save &amp; go to answer key</button>
   </div>
 </form>
 
-  <div class="card">
+<form method="post" enctype="multipart/form-data" class="card">
+  <h3>Append multiple questions from Excel</h3>
+  <p class="hint">Upload the template-based Excel file to add questions to the end of this exam.</p>
+  <label>Questions file (.xlsx)
+    <input type="file" name="questions_file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
+  </label>
+  <div class="grid">
+    <label>From question #
+      <input type="number" name="import_start" min="1" placeholder="1">
+    </label>
+    <label>To question #
+      <input type="number" name="import_end" min="1" placeholder="leave blank for all">
+    </label>
+  </div>
+  <div class="actions">
+    <button type="submit" name="action" value="import_excel">Upload &amp; append</button>
+    <a class="btn ghost" href="{{ url_for('excel_template') }}" target="_blank">Download template</a>
+  </div>
+</form>
+
+<form method="post" class="card">
+  <div class="list-header">
     <h3>Existing questions</h3>
     {% if exam.questions %}
-      <ul class="plain">
-        {% for question in exam.questions %}
-          <li>
-            <strong>{{ loop.index }}. {{ question.text }}</strong>
-            {% if question.image_path %}
-              <div><img src="{{ url_for('static', filename=question.image_path) }}" alt="question image" style="max-width:200px; margin-top:4px;"></div>
-            {% endif %}
-            {% if question.reason %}
-              <div class="hint">Reason: {{ question.reason }}</div>
-            {% endif %}
-            <br>
-            {% set letters = ['A','B','C','D','E','F'] %}
-            {% for choice in question.choices %}
-              {{ letters[loop.index0] }}. {{ choice.text }}{% if choice.is_correct %} (correct){% endif %}{% if not loop.last %} | {% endif %}
-            {% endfor %}
-            <div><a href="{{ url_for('edit_question', question_id=question.id) }}">Edit</a></div>
-          </li>
-        {% endfor %}
-      </ul>
+      <div class="actions compact">
+        <label class="choice select-all">
+          <input type="checkbox" id="select-all-questions">
+          <span>Select all</span>
+        </label>
+        <button type="submit" name="action" value="delete_selected" class="ghost danger small">Delete selected</button>
+      </div>
+    {% endif %}
+  </div>
+  {% if exam.questions %}
+    <ul class="plain question-list">
+      {% for question in exam.questions %}
+        <li class="question-row">
+          <div class="choice question-choice">
+            <input type="checkbox" name="selected_question" value="{{ question.id }}" class="question-checkbox">
+            <div class="choice-body">
+              <div class="question-text">
+                <div class="hint">Question {{ loop.index }}</div>
+                <div class="rich-text">{{ question.text|normalize_imgs|safe }}</div>
+                {% set qimg = question.image_path|img_url %}
+                {% if qimg %}
+                  <div class="question-image">
+                    <img src="{{ qimg }}" alt="question image">
+                  </div>
+                {% endif %}
+                {% if question.reason %}
+                  <div class="hint">Reason: {{ question.reason|normalize_imgs|safe }}</div>
+                {% endif %}
+                {% set rimg = question.reason_image_path|img_url %}
+                {% if rimg %}
+                  <div class="question-image">
+                    <img src="{{ rimg }}" alt="reason image">
+                  </div>
+                {% endif %}
+              </div>
+              <ul class="plain choice-list">
+                {% set letters = ['A','B','C','D','E','F'] %}
+                {% for choice in question.choices %}
+                  <li class="choice-row">
+                    <span class="choice-letter">{{ letters[loop.index0] }}.</span>
+                    <span class="choice-main">
+                      <span class="{% if choice.is_correct %}correct-text{% endif %}">{{ choice.text }}</span>
+                    {% set cimg = choice.image_path|img_url %}
+                    {% if cimg %}
+                      <img src="{{ cimg }}" alt="option image" class="option-thumb inline">
+                    {% endif %}
+                    </span>
+                  </li>
+                {% endfor %}
+              </ul>
+              <div class="row-actions">
+                <a href="{{ url_for('edit_question', question_id=question.id) }}" class="btn ghost small icon-btn">
+                  <span class="icon">✏️</span><span>Edit</span>
+                </a>
+                <button type="submit" name="delete_one" value="{{ question.id }}" class="ghost danger small icon-btn confirm-delete" data-confirm="Delete this question?">
+                  <span class="icon">🗑️</span><span>Delete</span>
+                </button>
+                <button type="button" class="btn ghost small icon-btn preview-trigger" data-question-id="{{ question.id }}">
+                  <span class="icon">👁️</span><span>Preview</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+    <div class="actions">
+      <button type="submit" name="action" value="delete_selected" class="danger confirm-delete" data-confirm="Delete selected questions?">Delete selected</button>
+    </div>
   {% else %}
     <p class="hint">No questions yet. Add your first one above.</p>
   {% endif %}
+</form>
+<div id="preview-modal" class="modal hidden">
+  <div class="modal-backdrop" data-close-preview></div>
+  <div class="modal-body">
+    <button class="modal-close" data-close-preview>&times;</button>
+    <div id="preview-content"></div>
+  </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.3/tinymce.min.js" referrerpolicy="origin"></script>
+<script>
+  tinymce.init({
+    selector: '#question-editor',
+    menubar: false,
+    plugins: 'advlist autolink lists link image charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime media table code help wordcount directionality',
+    toolbar: 'fontsizeselect bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link image table | rtl ltr | removeformat code',
+    height: 280,
+    branding: false,
+    content_style: 'body { font-family: Arial, sans-serif; font-size: 14px; }',
+    directionality: document.dir || 'ltr',
+    paste_data_images: true,
+    automatic_uploads: true,
+    file_picker_types: 'image',
+    images_upload_url: '{{ url_for("upload_rte_image") }}',
+    images_upload_credentials: false
+  });
+</script>
+<script>
+  const selectAllBox = document.getElementById('select-all-questions');
+  const checkboxes = document.querySelectorAll('.question-checkbox');
+  if (selectAllBox && checkboxes.length) {
+    selectAllBox.addEventListener('change', () => {
+      checkboxes.forEach(cb => { cb.checked = selectAllBox.checked; });
+    });
+    checkboxes.forEach(cb => {
+      cb.addEventListener('change', () => {
+        const allChecked = Array.from(checkboxes).every(c => c.checked);
+        if (selectAllBox.checked !== allChecked) {
+          selectAllBox.checked = allChecked;
+        }
+      });
+    });
+  }
+</script>
+<script>
+  const modal = document.getElementById('preview-modal');
+  const modalContent = document.getElementById('preview-content');
+  const previewButtons = document.querySelectorAll('.preview-trigger');
+
+  function closePreview() {
+    if (modal) {
+      modal.classList.add('hidden');
+      modalContent.innerHTML = '';
+    }
+  }
+
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target.hasAttribute('data-close-preview')) {
+        closePreview();
+      }
+    });
+  }
+
+  previewButtons.forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const qid = btn.dataset.questionId;
+      if (!qid) return;
+      try {
+        const res = await fetch(`{{ url_for('preview_question', question_id=0) }}`.replace('0', qid) + '?partial=1');
+        if (!res.ok) throw new Error('Failed to load preview');
+        const html = await res.text();
+        modalContent.innerHTML = html;
+        modal.classList.remove('hidden');
+      } catch (err) {
+        alert('Could not load preview.');
+      }
+    });
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closePreview();
+  });
+  // Delete confirmation
+  document.querySelectorAll('.confirm-delete').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const msg = btn.dataset.confirm || 'Are you sure you want to delete?';
+      if (!confirm(msg)) {
+        e.preventDefault();
+      }
+    });
+  });
+</script>
 {% endblock %}

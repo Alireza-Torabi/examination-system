@@ -1,2 +1,31 @@
-__pychache__
-*.pyc
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Environments
+.env
+.venv/
+venv/
+
+# IDE / tooling
+.vscode/
+.idea/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Distribution / build
+build/
+dist/
+*.egg-info/
+
+# Local data / uploads / db
+instance/
+static/uploads/
+*.db
+*.sqlite
+
+# Logs
+*.log
+

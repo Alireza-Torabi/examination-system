@@ -3,6 +3,7 @@ import json
 import os
 import random
 import re
+import glob
 import string
 import sys
 from datetime import datetime, timedelta, timezone
@@ -19,6 +20,7 @@ from flask import (
     send_file,
     session,
     url_for,
+    jsonify,
 )
 from sqlalchemy import inspect, text
 from openpyxl import Workbook, load_workbook
@@ -31,6 +33,7 @@ from app.extensions import db
 
 
 TIMEZONE_OPTIONS = Config.TIMEZONE_OPTIONS
+ALLOWED_IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".gif", ".webp")
 
 app = create_app()
 
@@ -95,14 +98,16 @@ class Question(db.Model):
     tenant = db.relationship("Tenant")
     image_path = db.Column(db.String(300))
     reason = db.Column(db.Text)
+    reason_image_path = db.Column(db.String(300))
 
-    choices = db.relationship("Choice", backref="question", cascade="all, delete-orphan")
+    choices = db.relationship("Choice", backref="question", cascade="all, delete-orphan", order_by="Choice.id")
 
 
 class Choice(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     question_id = db.Column(db.Integer, db.ForeignKey("question.id"), nullable=False)
     text = db.Column(db.String(400), nullable=False)
+    image_path = db.Column(db.String(300))
     is_correct = db.Column(db.Boolean, default=False)
     tenant_id = db.Column(db.Integer, db.ForeignKey("tenant.id"), nullable=False)
     tenant = db.relationship("Tenant")
@@ -231,11 +236,81 @@ def is_rtl_text(text: str) -> bool:
     return bool(re.search(r"[\u0600-\u06FF]", text))
 
 
+@app.template_filter("normalize_imgs")
+def normalize_imgs(html: str | None) -> str | None:
+    """Normalize relative image sources (uploads/*) to absolute /static paths for rendering."""
+    if not html:
+        return html
+    def _fix(match):
+        quote = match.group(1)
+        path = match.group(2).lstrip("/")
+        if path.startswith("instructor/"):
+            path = path[len("instructor/") :]
+        if path.startswith("static/"):
+            path = path[len("static/") :]
+        if not path.startswith("uploads/"):
+            path = f"uploads/{path}"
+        return f'src={quote}/static/{path}{quote}'
+
+    fixed = (
+        html.replace('src="uploads/', 'src="/static/uploads/')
+        .replace("src='uploads/", "src='/static/uploads/")
+        .replace('src="static/uploads/', 'src="/static/uploads/')
+        .replace("src='static/uploads/", "src='/static/uploads/")
+        .replace('src="/static/static/uploads/', 'src="/static/uploads/')
+    )
+    fixed = re.sub(r"src=(['\"])(?!https?:|data:|/)([^'\"\s>]+)\1", _fix, fixed, flags=re.IGNORECASE)
+    return fixed
+
+
+@app.template_filter("img_url")
+def img_url(path: str | None) -> str | None:
+    """Build a usable URL for stored images."""
+    if not path:
+        return None
+    pth = str(path).replace("\\", "/").strip()
+    if pth.startswith(("http://", "https://", "data:", "/")):
+        return pth
+    if pth.startswith("static/"):
+        pth = pth[len("static/") :]
+    if pth.startswith("/static/"):
+        pth = pth[len("/static/") :]
+    rel = pth.lstrip("/")
+    if not rel.startswith("uploads/"):
+        rel = f"uploads/{rel}"
+    static_folder = current_app.static_folder
+    abs_candidate = os.path.join(static_folder, rel)
+    if os.path.exists(abs_candidate):
+        return url_for("static", filename=rel)
+    # Fallback: try to find file in uploads matching the tail (e.g., timestamp mismatch)
+    tail = os.path.basename(rel)
+    fallback_matches = glob.glob(os.path.join(static_folder, "uploads", f"*{tail}"))
+    if fallback_matches:
+        alt_rel = f"uploads/{os.path.basename(fallback_matches[0])}"
+        return url_for("static", filename=alt_rel)
+    return None
+
+
 def fmt_datetime_local_input(dt: datetime, tz_name: str) -> str:
     if not dt:
         return ""
     local = to_local(dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc), tz_name)
     return local.strftime("%Y-%m-%dT%H:%M")
+
+
+def save_image_file(image_file):
+    """Store an uploaded image and return its relative static path."""
+    if not image_file or not image_file.filename:
+        return None
+    filename = secure_filename(image_file.filename)
+    if not filename.lower().endswith(ALLOWED_IMAGE_EXTENSIONS):
+        raise ValueError("Only image files are allowed (png, jpg, jpeg, gif, webp).")
+    upload_dir = current_app.config["UPLOAD_FOLDER"]
+    os.makedirs(upload_dir, exist_ok=True)
+    stored_name = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}_{filename}"
+    file_path = os.path.join(upload_dir, stored_name)
+    image_file.save(file_path)
+    return f"uploads/{stored_name}"
 
 
 def ensure_default_tenant():
@@ -289,12 +364,14 @@ def migrate_schema():
             db.session.execute(text("UPDATE question SET tenant_id = :tid WHERE tenant_id IS NULL"), {"tid": default_tenant.id})
         ensure_column("question", "image_path", "VARCHAR(300)")
         ensure_column("question", "reason", "TEXT")
+        ensure_column("question", "reason_image_path", "VARCHAR(300)")
 
     # Choices
     if "choice" in inspect(db.engine).get_table_names():
         added = ensure_column("choice", "tenant_id", "INTEGER")
         if added:
             db.session.execute(text("UPDATE choice SET tenant_id = :tid WHERE tenant_id IS NULL"), {"tid": default_tenant.id})
+        ensure_column("choice", "image_path", "VARCHAR(300)")
 
     # Attempts
     if "attempt" in inspect(db.engine).get_table_names():
@@ -347,12 +424,22 @@ def parse_questions_from_excel(file_stream):
     normalized_headers = [h.strip().lower() if isinstance(h, str) else "" for h in headers]
     canonical_headers = []
     for h in normalized_headers:
-        if h.startswith("question"):
+        if h.startswith("question") and "image" in h:
+            canonical_headers.append("question_image")
+        elif h.startswith("question"):
             canonical_headers.append("question")
         elif h.startswith("type"):
             canonical_headers.append("type")
         elif h.startswith("option"):
-            canonical_headers.append(h.split()[0])  # keep option1..optionN
+            opt = h.replace(" ", "")
+            match_img = re.match(r"option(\d+).*image", opt)
+            match_txt = re.match(r"option(\d+)", opt)
+            if match_img:
+                canonical_headers.append(f"option{match_img.group(1)}_image")
+            elif match_txt:
+                canonical_headers.append(f"option{match_txt.group(1)}")
+            else:
+                canonical_headers.append("")
         elif h.startswith("correct"):
             canonical_headers.append("correct")
         elif h.startswith("reason"):
@@ -372,10 +459,14 @@ def parse_questions_from_excel(file_stream):
     has_correct = "correct" in idx
     has_reason = "reason" in idx
 
-    option_headers = [h for h in canonical_headers if h.startswith("option")]
-    option_headers.sort(key=lambda name: int(name.replace("option", "")) if name.replace("option", "").isdigit() else 99)
-    if len(option_headers) < 2:
+    option_text_headers = [h for h in canonical_headers if re.match(r"option\d+$", h)]
+    option_image_headers = [h for h in canonical_headers if re.match(r"option\d+_image$", h)]
+    option_text_headers.sort(key=lambda name: int(name.replace("option", "")) if name.replace("option", "").isdigit() else 99)
+    option_image_headers.sort(key=lambda name: int(name.replace("option", "").replace("_image", "")) if name else 99)
+    if len(option_text_headers) < 2:
         raise ValueError("At least two options are required (Option1, Option2).")
+    if len(option_text_headers) > 6:
+        raise ValueError("Only up to 6 options are supported.")
 
     questions = []
     for row in sheet.iter_rows(min_row=2, values_only=True):
@@ -384,17 +475,37 @@ def parse_questions_from_excel(file_stream):
             continue
         qtype = str(row[idx["type"]] or "").strip().lower()
         qtype = "multiple" if "multi" in qtype else "single"
+        q_image_path = None
+        if "question_image" in idx:
+            q_image_path_raw = row[idx["question_image"]]
+            q_image_path = str(q_image_path_raw).strip() if q_image_path_raw else None
         option_values = []
-        for opt_key in option_headers:
+        option_numbers = []
+        for opt_key in option_text_headers:
             val = row[idx[opt_key]]
+            option_numbers.append(int(opt_key.replace("option", "")) if opt_key.replace("option", "").isdigit() else len(option_numbers) + 1)
             option_values.append(str(val).strip() if val else "")
-        while option_values and option_values[-1] == "":
-            option_values.pop()
-        if len(option_values) < 2:
+        option_images = {}
+        for opt_key in option_image_headers:
+            num_str = opt_key.replace("option", "").replace("_image", "")
+            num = int(num_str) if num_str.isdigit() else None
+            if num is None:
+                continue
+            val = row[idx[opt_key]]
+            option_images[num] = str(val).strip() if val else ""
+
+        options = []
+        for num, text_val in zip(option_numbers, option_values):
+            img_val = option_images.get(num, "")
+            if img_val and not text_val:
+                raise ValueError(f"Question '{question_text}' has an image for option {num} but no text.")
+            options.append({"text": text_val, "image_path": img_val or None})
+        while options and options[-1]["text"] == "" and not options[-1]["image_path"]:
+            options.pop()
+        if len(options) < 2:
             raise ValueError(f"Question '{question_text}' must have at least two options.")
-        if "" in option_values:
+        if any(not opt["text"] for opt in options):
             raise ValueError(f"Question '{question_text}' has empty option gaps. Please fill options without gaps.")
-        options = option_values
         correct_indices = []
         if has_correct:
             raw = row[idx["correct"]] if "correct" in idx else None
@@ -414,6 +525,7 @@ def parse_questions_from_excel(file_stream):
                 "options": options,
                 "correct": correct_indices,
                 "reason": str(reason_val) if reason_val else None,
+                "image_path": q_image_path,
             }
         )
     if not questions:
@@ -434,8 +546,16 @@ def create_questions(exam: Exam, question_defs: list[dict]):
         db.session.add(q)
         db.session.flush()
         correct = set(q_def.get("correct", []))
-        for idx, text in enumerate(q_def["options"]):
-            choice = Choice(question=q, text=text, is_correct=idx in correct, tenant_id=exam.tenant_id)
+        for idx, opt in enumerate(q_def["options"]):
+            opt_text = opt.get("text") if isinstance(opt, dict) else opt
+            opt_image = opt.get("image_path") if isinstance(opt, dict) else None
+            choice = Choice(
+                question=q,
+                text=opt_text,
+                image_path=opt_image,
+                is_correct=idx in correct,
+                tenant_id=exam.tenant_id,
+            )
             db.session.add(choice)
 
 
@@ -723,19 +843,70 @@ def excel_template():
     ws.append(
         [
             "Question",
+            "QuestionImage",
             "Type (single/multiple)",
             "Option1",
+            "Option1Image",
             "Option2",
+            "Option2Image",
             "Option3",
+            "Option3Image",
             "Option4",
+            "Option4Image",
             "Option5",
+            "Option5Image",
             "Option6",
+            "Option6Image",
             "Correct (letters, e.g. A or A,C)",
             "Reason (optional)",
         ]
     )
-    ws.append(["What is 2+2?", "single", "2", "3", "4", "5", "", "", "C", "Basic arithmetic."])
-    ws.append(["Select prime numbers", "multiple", "2", "3", "4", "9", "11", "15", "A,E", "2 and 11 are prime."])
+    ws.append(
+        [
+            "What is 2+2?",
+            "",
+            "single",
+            "2",
+            "",
+            "3",
+            "",
+            "4",
+            "",
+            "5",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "C",
+            "Basic arithmetic.",
+        ]
+    )
+    ws.append(
+        [
+            "Select prime numbers",
+            "",
+            "multiple",
+            "2",
+            "",
+            "3",
+            "",
+            "4",
+            "",
+            "9",
+            "",
+            "11",
+            "",
+            "15",
+            "",
+            "",
+            "",
+            "A,E",
+            "2 and 11 are prime.",
+        ]
+    )
     buffer = io.BytesIO()
     wb.save(buffer)
     buffer.seek(0)
@@ -745,6 +916,21 @@ def excel_template():
         download_name="exam_template.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
+
+@app.route("/instructor/uploads/images", methods=["POST"])
+@login_required(role=["instructor", "admin"])
+def upload_rte_image():
+    image_file = request.files.get("file")
+    if not image_file or not image_file.filename:
+        return jsonify({"error": "No file provided"}), 400
+    try:
+        image_path = save_image_file(image_file)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    if not image_path:
+        return jsonify({"error": "Invalid file"}), 400
+    return jsonify({"location": url_for("static", filename=image_path)})
 
 
 @app.route("/instructor/exams/new", methods=["GET", "POST"])
@@ -919,16 +1105,95 @@ def add_question(exam_id):
     if user.role != "admin" and (exam.created_by != user.id or exam.tenant_id != user.tenant_id):
         abort(404)
     if request.method == "POST":
+        delete_one_id = request.form.get("delete_one")
+        if delete_one_id:
+            try:
+                qid = int(delete_one_id)
+            except ValueError:
+                flash("Invalid question selected.")
+                return redirect(request.url)
+            question_to_delete = Question.query.filter_by(id=qid, exam_id=exam.id).first()
+            if not question_to_delete:
+                flash("Question not found or already deleted.")
+                return redirect(request.url)
+            Answer.query.filter_by(question_id=question_to_delete.id).delete()
+            db.session.delete(question_to_delete)
+            db.session.commit()
+            flash("Question deleted.")
+            return redirect(request.url)
+        action = request.form.get("action", "add_more")
+        if action == "delete_selected":
+            selected_ids = [int(v) for v in request.form.getlist("selected_question") if v.isdigit()]
+            if not selected_ids:
+                flash("Please select at least one question to delete.")
+                return redirect(request.url)
+            questions_to_delete = (
+                Question.query.filter(Question.exam_id == exam.id, Question.id.in_(selected_ids)).all()
+            )
+            if not questions_to_delete:
+                flash("No matching questions were selected.")
+                return redirect(request.url)
+            for q in questions_to_delete:
+                Answer.query.filter_by(question_id=q.id).delete()
+                db.session.delete(q)
+            db.session.commit()
+            flash(f"Deleted {len(questions_to_delete)} question(s).")
+            return redirect(request.url)
+        if action == "import_excel":
+            upload = request.files.get("questions_file")
+            if not upload or not upload.filename:
+                flash("Please choose an Excel file to upload.")
+                return redirect(request.url)
+            start_raw = request.form.get("import_start", "").strip()
+            end_raw = request.form.get("import_end", "").strip()
+            try:
+                question_defs = parse_questions_from_excel(upload)
+            except Exception as exc:  # pylint: disable=broad-except
+                flash(str(exc))
+                return redirect(request.url)
+            if not question_defs:
+                flash("No questions were found in the uploaded file.")
+                return redirect(request.url)
+            start_idx = 1
+            end_idx = len(question_defs)
+            try:
+                if start_raw:
+                    start_idx = int(start_raw)
+                if end_raw:
+                    end_idx = int(end_raw)
+            except ValueError:
+                flash("Please enter valid numbers for the question range.")
+                return redirect(request.url)
+            if start_idx < 1 or end_idx < 1 or start_idx > end_idx:
+                flash("Invalid range. 'From' must be >= 1 and <= 'To'.")
+                return redirect(request.url)
+            if start_idx > len(question_defs):
+                flash("Range start is beyond the available questions in the file.")
+                return redirect(request.url)
+            end_idx = min(end_idx, len(question_defs))
+            selected_defs = question_defs[start_idx - 1 : end_idx]
+            if not selected_defs:
+                flash("No questions selected from the provided range.")
+                return redirect(request.url)
+            create_questions(exam, selected_defs)
+            db.session.commit()
+            flash(f"Added {len(selected_defs)} question(s) from Excel (rows {start_idx} to {end_idx}).")
+            return redirect(request.url)
         text = request.form.get("text", "").strip()
         qtype = request.form.get("qtype", "single")
         qtype = "multiple" if qtype == "multiple" else "single"
         image_file = request.files.get("image")
+        reason_image_file = request.files.get("reason_image")
         reason = request.form.get("reason", "").strip()
         option_fields = []
         for idx in range(1, 7):
             val = request.form.get(f"option{idx}", "").strip()
+            opt_image = request.files.get(f"option_image{idx}")
             if val:
-                option_fields.append((idx, val))
+                option_fields.append((idx, val, opt_image))
+            elif opt_image and opt_image.filename:
+                flash("Please add text for any option that has an image.")
+                return redirect(request.url)
         if not text:
             flash("Question text is required.")
             return redirect(request.url)
@@ -938,8 +1203,8 @@ def add_question(exam_id):
         correct_raw = {int(v) for v in request.form.getlist("correct") if v.isdigit()}
         options = []
         correct_indices = set()
-        for idx, (field_idx, val) in enumerate(option_fields):
-            options.append(val)
+        for idx, (field_idx, val, opt_image) in enumerate(option_fields):
+            options.append({"text": val, "file": opt_image})
             if field_idx in correct_raw:
                 correct_indices.add(idx)
         if not correct_indices:
@@ -948,18 +1213,22 @@ def add_question(exam_id):
         if qtype == "single":
             first = sorted(correct_indices)[0]
             correct_indices = {first}
-        image_path = None
-        if image_file and image_file.filename:
-            filename = secure_filename(image_file.filename)
-            if not filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp")):
-                flash("Only image files are allowed (png, jpg, jpeg, gif, webp).")
+        try:
+            image_path = save_image_file(image_file)
+            reason_image_path = save_image_file(reason_image_file)
+        except ValueError as exc:
+            flash(str(exc))
+            return redirect(request.url)
+        choices_payload = []
+        for idx, opt in enumerate(options):
+            try:
+                opt_image_path = save_image_file(opt.get("file"))
+            except ValueError as exc:
+                flash(str(exc))
                 return redirect(request.url)
-            upload_dir = current_app.config["UPLOAD_FOLDER"]
-            os.makedirs(upload_dir, exist_ok=True)
-            stored_name = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}_{filename}"
-            file_path = os.path.join(upload_dir, stored_name)
-            image_file.save(file_path)
-            image_path = f"uploads/{stored_name}"
+            choices_payload.append(
+                {"text": opt["text"], "image_path": opt_image_path, "is_correct": idx in correct_indices}
+            )
         question = Question(
             exam=exam,
             text=text,
@@ -967,21 +1236,22 @@ def add_question(exam_id):
             tenant_id=exam.tenant_id,
             image_path=image_path,
             reason=reason or None,
+            reason_image_path=reason_image_path,
         )
         db.session.add(question)
         db.session.flush()
-        for idx, opt_text in enumerate(options):
+        for payload in choices_payload:
             db.session.add(
                 Choice(
                     question=question,
-                    text=opt_text,
-                    is_correct=idx in correct_indices,
+                    text=payload["text"],
+                    image_path=payload["image_path"],
+                    is_correct=payload["is_correct"],
                     tenant_id=exam.tenant_id,
                 )
             )
         db.session.commit()
         flash("Question added.")
-        action = request.form.get("action", "add_more")
         if action == "finish":
             return redirect(url_for("answer_key", exam_id=exam.id))
         return redirect(request.url)
@@ -1004,12 +1274,21 @@ def edit_question(question_id):
         qtype = "multiple" if qtype == "multiple" else "single"
         image_file = request.files.get("image")
         remove_image = request.form.get("remove_image") == "on"
+        reason_image_file = request.files.get("reason_image")
+        remove_reason_image = request.form.get("remove_reason_image") == "on"
         reason = request.form.get("reason", "").strip()
+        existing_choices = list(question.choices)
+        existing_choice_images = {idx + 1: choice.image_path for idx, choice in enumerate(existing_choices)}
         option_fields = []
         for idx in range(1, 7):
             val = request.form.get(f"option{idx}", "").strip()
+            opt_image = request.files.get(f"option_image{idx}")
+            remove_opt_image = request.form.get(f"remove_option_image{idx}") == "on"
             if val:
-                option_fields.append((idx, val))
+                option_fields.append((idx, val, opt_image, remove_opt_image))
+            elif opt_image and opt_image.filename:
+                flash("Please add text for any option that has an image.")
+                return redirect(request.url)
         if not text:
             flash("Question text is required.")
             return redirect(request.url)
@@ -1019,8 +1298,8 @@ def edit_question(question_id):
         correct_raw = {int(v) for v in request.form.getlist("correct") if v.isdigit()}
         options = []
         correct_indices = set()
-        for idx, (field_idx, val) in enumerate(option_fields):
-            options.append(val)
+        for idx, (field_idx, val, opt_image, remove_opt_image) in enumerate(option_fields):
+            options.append({"text": val, "file": opt_image, "remove_image": remove_opt_image, "field_idx": field_idx})
             if field_idx in correct_raw:
                 correct_indices.add(idx)
         if not correct_indices:
@@ -1033,35 +1312,63 @@ def edit_question(question_id):
         image_path = question.image_path
         if remove_image:
             image_path = None
-        if image_file and image_file.filename:
-            filename = secure_filename(image_file.filename)
-            if not filename.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp")):
-                flash("Only image files are allowed (png, jpg, jpeg, gif, webp).")
+        else:
+            try:
+                new_image_path = save_image_file(image_file)
+            except ValueError as exc:
+                flash(str(exc))
                 return redirect(request.url)
-            upload_dir = current_app.config["UPLOAD_FOLDER"]
-            os.makedirs(upload_dir, exist_ok=True)
-            stored_name = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}_{filename}"
-            file_path = os.path.join(upload_dir, stored_name)
-            image_file.save(file_path)
-            image_path = f"uploads/{stored_name}"
+            if new_image_path:
+                image_path = new_image_path
+        reason_image_path = question.reason_image_path
+        if remove_reason_image:
+            reason_image_path = None
+        else:
+            try:
+                new_reason_image = save_image_file(reason_image_file)
+            except ValueError as exc:
+                flash(str(exc))
+                return redirect(request.url)
+            if new_reason_image:
+                reason_image_path = new_reason_image
+
+        choices_payload = []
+        for idx, opt in enumerate(options):
+            image_for_choice = existing_choice_images.get(opt["field_idx"])
+            if opt.get("remove_image"):
+                image_for_choice = None
+            try:
+                new_choice_image = save_image_file(opt.get("file"))
+            except ValueError as exc:
+                flash(str(exc))
+                return redirect(request.url)
+            if new_choice_image:
+                image_for_choice = new_choice_image
+            choices_payload.append(
+                {"text": opt["text"], "image_path": image_for_choice, "is_correct": idx in correct_indices}
+            )
 
         # Replace choices and answers
-        Answer.query.filter_by(question_id=question.id).delete()
-        Choice.query.filter_by(question_id=question.id).delete()
+        Answer.query.filter_by(question_id=question.id).delete(synchronize_session=False)
+        Choice.query.filter_by(question_id=question.id).delete(synchronize_session=False)
+        # Clear any loaded relationship objects to avoid using deleted instances
+        question.choices = []
         db.session.flush()
 
         question.text = text
         question.qtype = qtype
         question.image_path = image_path
         question.reason = reason or None
+        question.reason_image_path = reason_image_path
         db.session.add(question)
         db.session.flush()
-        for idx, opt_text in enumerate(options):
+        for payload in choices_payload:
             db.session.add(
                 Choice(
                     question=question,
-                    text=opt_text,
-                    is_correct=idx in correct_indices,
+                    text=payload["text"],
+                    image_path=payload["image_path"],
+                    is_correct=payload["is_correct"],
                     tenant_id=exam.tenant_id,
                 )
             )
@@ -1080,6 +1387,37 @@ def edit_question(question_id):
         options=options,
         correct_indices=correct_indices,
         letter_map=letter_map,
+    )
+
+@app.route("/instructor/questions/<int:question_id>/preview")
+@login_required(role=["instructor", "admin"])
+def preview_question(question_id):
+    question = db.session.get(Question, question_id)
+    if not question or question.exam.deleted_at:
+        abort(404)
+    user = get_current_user()
+    exam = question.exam
+    if user.role != "admin" and (exam.created_by != user.id or exam.tenant_id != user.tenant_id):
+        abort(404)
+    # Fake attempt-like data for rendering
+    class Dummy:
+        pass
+    dummy_attempt = Dummy()
+    dummy_attempt.exam = exam
+    dummy_attempt.id = 0
+    is_partial = request.args.get("partial") == "1"
+    template_name = "question_preview_partial.html" if is_partial else "question_preview.html"
+    return render_template(
+        template_name,
+        question=question,
+        attempt=dummy_attempt,
+        index=1,
+        total=1,
+        selected_ids=set(),
+        time_left_seconds=0,
+        total_seconds=0,
+        per_question_seconds=0,
+        is_preview=True,
     )
 
 
@@ -1259,19 +1597,34 @@ def export_exam_to_workbook(exam: Exam) -> Workbook:
     wb = Workbook()
     ws = wb.active
     ws.title = "Questions"
-    max_opts = max((len(q.choices) for q in exam.questions), default=4)
-    max_opts = max(max_opts, 4)
-    option_headers = [f"Option{i}" for i in range(1, max_opts + 1)]
-    ws.append(["Question", "Type (single/multiple)", *option_headers, "Correct (letters)", "Reason (optional)"])
+    max_opts = 6
+    option_headers = []
+    for i in range(1, max_opts + 1):
+        option_headers.extend([f"Option{i}", f"Option{i}Image"])
+    ws.append(
+        [
+            "Question",
+            "QuestionImage",
+            "Type (single/multiple)",
+            *option_headers,
+            "Correct (letters)",
+            "Reason (optional)",
+        ]
+    )
     letter_map = list(string.ascii_uppercase)
     for q in exam.questions:
-        options = [c.text for c in q.choices]
+        options = list(q.choices)
         correct_letters = [
-            letter_map[idx] for idx, c in enumerate(q.choices) if c.is_correct and idx < len(letter_map)
+            letter_map[idx] for idx, c in enumerate(options) if c.is_correct and idx < len(letter_map)
         ]
-        row = [q.text, q.qtype]
+        row = [q.text, q.image_path or "", q.qtype]
         for i in range(max_opts):
-            row.append(options[i] if i < len(options) else "")
+            if i < len(options):
+                row.append(options[i].text)
+                row.append(options[i].image_path or "")
+            else:
+                row.append("")
+                row.append("")
         row.append(",".join(correct_letters))
         row.append(q.reason or "")
         ws.append(row)

@@ -1,0 +1,36 @@
+{% set q_rtl = is_rtl(question.text|striptags) %}
+<div class="modal-card">
+  <div class="toolbar">
+    <div>
+      <p class="hint">Preview mode</p>
+      <h2>{{ attempt.exam.title }}</h2>
+    </div>
+    <button type="button" class="btn ghost" data-close-preview>Close</button>
+  </div>
+  <div class="card" dir="{{ 'rtl' if q_rtl else 'ltr' }}">
+    <p class="question-text">{{ question.text|normalize_imgs|safe }}</p>
+    {% set qimg = question.image_path|img_url %}
+    {% if qimg %}
+      <div class="question-image"><img src="{{ qimg }}" alt="Question image"></div>
+    {% endif %}
+    <div class="choices" dir="{{ 'rtl' if q_rtl else 'ltr' }}">
+      {% set letters = ['A','B','C','D','E','F'] %}
+      {% for choice in question.choices %}
+        {% set rtl_choice = is_rtl(choice.text) or q_rtl %}
+        <label class="choice" dir="{{ 'rtl' if rtl_choice else 'ltr' }}">
+          <input
+            type="{{ 'checkbox' if question.qtype == 'multiple' else 'radio' }}"
+            disabled
+          >
+          <div class="choice-body">
+            <span class="choice-text"><strong>{{ letters[loop.index0] }}.</strong> {{ choice.text }}</span>
+            {% set cimg = choice.image_path|img_url %}
+            {% if cimg %}
+              <img src="{{ cimg }}" alt="Option image" class="choice-image">
+            {% endif %}
+          </div>
+        </label>
+      {% endfor %}
+    </div>
+  </div>
+</div>

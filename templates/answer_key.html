@@ -14,7 +14,7 @@
 <form method="post" class="card">
   {% for question in exam.questions %}
     <div class="review-item">
-      <p class="question-text">{{ loop.index }}. {{ question.text }} <span class="hint">({{ question.qtype }})</span></p>
+      <p class="question-text">{{ loop.index }}. {{ question.text|normalize_imgs|safe }} <span class="hint">({{ question.qtype }})</span></p>
       <div class="choices">
         {% for choice in question.choices %}
           <label class="choice">
@@ -24,7 +24,13 @@
               value="{{ choice.id }}"
               {% if choice.is_correct %}checked{% endif %}
             >
-            <span>{{ choice.text }}</span>
+            <div class="choice-body">
+              <span class="choice-text">{{ choice.text }}</span>
+              {% set cimg = choice.image_path|img_url %}
+              {% if cimg %}
+                <img src="{{ cimg }}" alt="Option image" class="choice-image">
+              {% endif %}
+            </div>
           </label>
         {% endfor %}
       </div>

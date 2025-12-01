@@ -10,11 +10,12 @@
 
 <div class="card">
   {% for question in questions %}
-    {% set q_rtl = is_rtl(question.text) %}
+    {% set q_rtl = is_rtl(question.text|striptags) %}
     <div class="review-item" dir="{{ 'rtl' if q_rtl else 'ltr' }}">
-      <p class="question-text">{{ loop.index }}. {{ question.text }}</p>
-      {% if question.image_path %}
-        <div class="question-image"><img src="{{ url_for('static', filename=question.image_path) }}" alt="Question image"></div>
+      <p class="question-text">{{ loop.index }}. {{ question.text|normalize_imgs|safe }}</p>
+      {% set qimg = question.image_path|img_url %}
+      {% if qimg %}
+        <div class="question-image"><img src="{{ qimg }}" alt="Question image"></div>
       {% endif %}
       <ul class="plain" dir="{{ 'rtl' if q_rtl else 'ltr' }}">
         {% set letters = ['A','B','C','D','E','F'] %}
@@ -22,6 +23,9 @@
           <li>
             {% set checked = choice.id in (answers_map.get(question.id) or []) %}
             {{ letters[loop.index0] }}. {{ "[x]" if checked else "[ ]" }} {{ choice.text }}
+            {% if choice.image_path %}
+              <img src="{{ url_for('static', filename=choice.image_path) }}" alt="Option image" class="choice-image inline">
+            {% endif %}
           </li>
         {% endfor %}
       </ul>
