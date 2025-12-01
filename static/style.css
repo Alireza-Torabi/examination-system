@@ -68,6 +68,9 @@ button, .btn {
   color: #fff;
   cursor: pointer;
   font-weight: 700;
+  font-family: inherit;
+  font-size: 1em;
+  line-height: 1.2;
   text-decoration: none;
 }
 button.danger, .btn.danger {

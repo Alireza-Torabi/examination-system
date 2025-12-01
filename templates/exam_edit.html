@@ -29,7 +29,7 @@
       <input type="number" name="question_limit" min="1" value="{{ exam.question_limit or '' }}" placeholder="Leave empty to ask all questions">
     </label>
     <div class="actions">
-      <button type="submit">Save</button>
+      <button type="submit" class="btn">Save</button>
       <a class="btn ghost" href="{{ url_for('instructor.instructor_dashboard') }}">Cancel</a>
     </div>
   </form>

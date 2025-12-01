@@ -48,8 +48,8 @@
     <input type="file" name="reason_image" accept="image/*">
   </label>
   <div class="actions">
-    <button type="submit" name="action" value="add_more">Save &amp; add another</button>
-    <button type="submit" name="action" value="finish" class="ghost">Save &amp; go to answer key</button>
+    <button type="submit" name="action" value="add_more" class="btn">Save &amp; add another</button>
+    <button type="submit" name="action" value="finish" class="btn ghost">Save &amp; go to answer key</button>
   </div>
 </form>
 
@@ -68,7 +68,7 @@
     </label>
   </div>
   <div class="actions">
-    <button type="submit" name="action" value="import_excel">Upload &amp; append</button>
+    <button type="submit" name="action" value="import_excel" class="btn">Upload &amp; append</button>
     <a class="btn ghost" href="{{ url_for('instructor.excel_template') }}" target="_blank">Download template</a>
   </div>
 </form>
@@ -82,7 +82,7 @@
           <input type="checkbox" id="select-all-questions">
           <span>Select all</span>
         </label>
-        <button type="submit" name="action" value="delete_selected" class="ghost danger small">Delete selected</button>
+        <button type="submit" name="action" value="delete_selected" class="btn ghost danger small">Delete selected</button>
       </div>
     {% endif %}
   </div>
@@ -131,7 +131,7 @@
                 <a href="{{ url_for('instructor.edit_question', question_id=question.id) }}" class="btn ghost small icon-btn">
                   <span class="icon">✏️</span><span>Edit</span>
                 </a>
-                <button type="submit" name="delete_one" value="{{ question.id }}" class="ghost danger small icon-btn confirm-delete" data-confirm="Delete this question?">
+                <button type="submit" name="delete_one" value="{{ question.id }}" class="btn ghost danger small icon-btn confirm-delete" data-confirm="Delete this question?">
                   <span class="icon">🗑️</span><span>Delete</span>
                 </button>
                 <button type="button" class="btn ghost small icon-btn preview-trigger" data-question-id="{{ question.id }}">
@@ -144,7 +144,7 @@
       {% endfor %}
     </ul>
     <div class="actions">
-      <button type="submit" name="action" value="delete_selected" class="danger confirm-delete" data-confirm="Delete selected questions?">Delete selected</button>
+      <button type="submit" name="action" value="delete_selected" class="btn danger confirm-delete" data-confirm="Delete selected questions?">Delete selected</button>
     </div>
   {% else %}
     <p class="hint">No questions yet. Add your first one above.</p>

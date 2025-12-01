@@ -14,6 +14,7 @@
         <a href="{{ url_for('settings.settings') }}">Settings</a>
         {% if current_user and current_user.role == 'admin' %}
           <a href="{{ url_for('admin.admin_dashboard') }}">Admin</a>
+          <a href="{{ url_for('admin.admin_backups') }}">Backups</a>
           <a href="{{ url_for('admin.admin_logs') }}">Log</a>
         {% endif %}
         <a href="{{ url_for('auth.logout') }}">Logout</a>

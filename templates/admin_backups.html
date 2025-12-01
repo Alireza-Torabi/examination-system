@@ -1,0 +1,78 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="toolbar">
+  <div>
+    <h2>Backups</h2>
+    <p class="hint">Create and download backup archives. Timezone: {{ admin_tz }}</p>
+  </div>
+  <div class="actions">
+    <form method="post" action="{{ url_for('admin.admin_backup_create') }}">
+      <button type="submit" class="btn">Create backup</button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Restore from backup</h3>
+  <p class="hint">Upload a backup zip to overwrite the current database and uploaded files.</p>
+  <form method="post" action="{{ url_for('admin.admin_backup_restore') }}" enctype="multipart/form-data">
+    <label>Backup zip file
+      <input type="file" name="backup_file" accept=".zip" required>
+    </label>
+    <div class="actions">
+      <button type="submit" class="btn danger">Restore backup</button>
+    </div>
+  </form>
+  <p class="hint red">Restoring will replace the existing SQLite database and uploads. Ensure you have a recent backup.</p>
+</div>
+
+<div class="card">
+  <h3>Factory reset / Purge all data</h3>
+  <p class="hint red">This will delete the database and all uploaded files, then recreate defaults. Backups remain untouched.</p>
+  <form method="post" action="{{ url_for('admin.admin_backup_reset') }}" onsubmit="return confirm('Are you sure? This deletes all data.');">
+    <label>Type <code>RESET</code> to confirm
+      <input type="text" name="confirm_text" placeholder="RESET" required pattern="RESET">
+    </label>
+    <div class="actions">
+      <button type="submit" class="btn danger">Purge all data</button>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <div class="toolbar no-space">
+    <h3>Backup history</h3>
+  </div>
+  {% if backups %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Created</th>
+          <th>Size (KB)</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in backups %}
+          <tr>
+            <td>{{ b.name }}</td>
+            <td>{{ b.created_local }}</td>
+            <td>{{ b.size_kb }}</td>
+            <td class="actions compact">
+              <a class="btn ghost" href="{{ url_for('admin.admin_backup_download', filename=b.name) }}">Download</a>
+              <form method="post" action="{{ url_for('admin.admin_backup_restore_file', filename=b.name) }}" onsubmit="return confirm('Restoring this backup will overwrite current data and uploads with the selected archive. Continue?');">
+                <input type="hidden" name="confirm_text" value="RESTORE">
+      <button type="submit" class="btn danger ghost">Restore</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="hint">No backups have been created yet. Use “Create backup” above to generate one.</p>
+  {% endif %}
+  <p class="hint">Each archive contains the SQLite database (or JSON dump) and all files under <code>static/uploads</code>. Restoring from this list replaces current data.</p>
+</div>
+{% endblock %}

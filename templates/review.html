@@ -34,7 +34,7 @@
     </div>
   {% endfor %}
   <form method="post" action="{{ url_for('student.submit_attempt', attempt_id=attempt.id) }}">
-    <button type="submit">Submit exam</button>
+    <button type="submit" class="btn">Submit exam</button>
   </form>
 </div>
 {% endblock %}

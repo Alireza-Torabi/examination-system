@@ -30,6 +30,7 @@ def _timezone_options() -> list[str]:
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_UPLOAD_FOLDER = os.path.join(BASE_DIR, "static", "uploads")
+DEFAULT_BACKUP_FOLDER = os.path.join(BASE_DIR, "instance", "backups")
 TIMEZONE_OPTIONS = _timezone_options()
 
 
@@ -42,4 +43,5 @@ class Config:
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", DEFAULT_UPLOAD_FOLDER)
+    BACKUP_FOLDER = os.environ.get("BACKUP_FOLDER", DEFAULT_BACKUP_FOLDER)
     TIMEZONE_OPTIONS = TIMEZONE_OPTIONS

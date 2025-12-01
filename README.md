@@ -24,16 +24,21 @@ This app serves multi-tenant instructor/student exams with dashboards for admin,
    # or: flask --app app run --debug --host 0.0.0.0 --port 5000
    ```
 5. **Default logins**
-   - Admin: `admin` / `admin123`
-   - Instructor: `instructor` / `instructor123`
-   - Student: `student1` / `student123`
+- Admin: `admin` / `admin123`
+- Instructor: `instructor` / `instructor123`
+- Student: `student1` / `student123`
 
 ## Configuration
 - `SECRET_KEY` (default: `dev-secret-key`)
 - `DATABASE_URL` or `SQLALCHEMY_DATABASE_URI` (default: `sqlite:///exam_app.db`)
 - `UPLOAD_FOLDER` (default: `./static/uploads`)
+- `BACKUP_FOLDER` (default: `./instance/backups`)
 - `PORT` (for `python app.py`)
 - Timezone options are auto-loaded from system tzdata/pytz; fallback list is defined in `app/config.py`.
+
+## Backups
+- Admins can open **Backups** to create and list stored archives under `BACKUP_FOLDER` (default `instance/backups`). Each archive contains the SQLite database (or JSON dump) and all uploaded files.
+- To restore, upload a backup zip from the same page; it overwrites the current SQLite database and `static/uploads/` contents.
 
 ## Project layout
 ```

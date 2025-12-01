@@ -6,7 +6,7 @@
       <h2>Result: {{ attempt.exam.title }}</h2>
       <p class="hint">Started: {{ attempt.started_at }} | Submitted: {{ attempt.submitted_at }}</p>
     </div>
-    <button onclick="window.print()">Print</button>
+    <button onclick="window.print()" class="btn ghost">Print</button>
   </div>
   <p><strong>Score:</strong> {{ attempt.score_percent }}% ({{ attempt.num_correct }} / {{ attempt.num_questions }})</p>
   <h3>Your answers</h3>

@@ -21,6 +21,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
 
     # Ensure upload directory exists early.
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+    os.makedirs(app.config["BACKUP_FOLDER"], exist_ok=True)
 
     db.init_app(app)
 

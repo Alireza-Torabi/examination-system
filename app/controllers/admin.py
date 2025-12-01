@@ -1,7 +1,16 @@
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, send_file, url_for
 
 from app.extensions import db
 from app.models import AccessLog, Attempt, Exam, ExamDeletionLog, Tenant, User
+from app.services.backup import (
+    BackupError,
+    backup_folder,
+    create_backup_archive,
+    list_backups,
+    purge_all_data,
+    restore_backup_file,
+    restore_backup_upload,
+)
 from app.services.timezone import TIMEZONE_OPTIONS, fmt_dt, to_local
 from app.utils.auth import get_current_user, login_required
 
@@ -89,6 +98,127 @@ def admin_logs():
         attempt_logs=attempt_logs,
         view=view,
     )
+
+
+@bp.route("/admin/backups")
+@login_required(role="admin")
+def admin_backups():
+    admin_user = get_current_user()
+    admin_tz = admin_user.timezone or "UTC"
+    backups = []
+    for entry in list_backups():
+        created_local = fmt_dt(to_local(entry["created_at"], admin_tz))
+        size_kb = round(entry["size"] / 1024, 1) if entry["size"] else 0
+        backups.append(
+            {
+                "name": entry["name"],
+                "size_kb": size_kb,
+                "created_local": created_local,
+            }
+        )
+    return render_template("admin_backups.html", backups=backups, admin_tz=admin_tz)
+
+
+@bp.route("/admin/backups/create", methods=["POST"])
+@login_required(role="admin")
+def admin_backup_create():
+    try:
+        create_backup_archive(persist=True)
+        flash("Backup created.")
+    except BackupError as exc:
+        flash(str(exc))
+        return redirect(url_for("admin.admin_backups"))
+    except Exception:  # pylint: disable=broad-except
+        current_app.logger.exception("Backup failed")
+        flash("Backup failed. Please check the server logs.")
+        return redirect(url_for("admin.admin_backups"))
+
+    return redirect(url_for("admin.admin_backups"))
+
+
+@bp.route("/admin/backups/<path:filename>/download")
+@login_required(role="admin")
+def admin_backup_download(filename):
+    folder = backup_folder()
+    requested = (folder / filename).resolve()
+    try:
+        requested.relative_to(folder)
+    except ValueError:
+        abort(404)
+    if not requested.exists():
+        abort(404)
+    return send_file(
+        requested,
+        as_attachment=True,
+        download_name=requested.name,
+        mimetype="application/zip",
+        max_age=0,
+    )
+
+
+@bp.route("/admin/backups/restore", methods=["POST"])
+@login_required(role="admin")
+def admin_backup_restore():
+    file_obj = request.files.get("backup_file")
+    try:
+        result = restore_backup_upload(file_obj)
+        flash(
+            f"Restore complete. Database: {result.get('database', 'unknown')}; uploads restored: {result.get('uploads_restored', 0)}."
+        )
+    except BackupError as exc:
+        flash(str(exc))
+    except Exception:  # pylint: disable=broad-except
+        current_app.logger.exception("Restore failed")
+        flash("Restore failed. Please check the server logs.")
+    return redirect(url_for("admin.admin_backups"))
+
+
+@bp.route("/admin/backups/<path:filename>/restore", methods=["POST"])
+@login_required(role="admin")
+def admin_backup_restore_file(filename):
+    confirm_text = request.form.get("confirm_text", "").strip()
+    if confirm_text != "RESTORE":
+        flash("Type RESTORE to confirm restore.")
+        return redirect(url_for("admin.admin_backups"))
+    folder = backup_folder()
+    requested = (folder / filename).resolve()
+    try:
+        requested.relative_to(folder)
+    except ValueError:
+        abort(404)
+    if not requested.exists():
+        abort(404)
+    try:
+        result = restore_backup_file(requested)
+        flash(
+            f"Restore from {requested.name} complete. Database: {result.get('database', 'unknown')}; uploads restored: {result.get('uploads_restored', 0)}."
+        )
+    except BackupError as exc:
+        flash(str(exc))
+    except Exception:  # pylint: disable=broad-except
+        current_app.logger.exception("Restore failed")
+        flash("Restore failed. Please check the server logs.")
+    return redirect(url_for("admin.admin_backups"))
+
+
+@bp.route("/admin/backups/reset", methods=["POST"])
+@login_required(role="admin")
+def admin_backup_reset():
+    confirm_text = request.form.get("confirm_text", "").strip()
+    if confirm_text != "RESET":
+        flash("Type RESET to confirm factory reset.")
+        return redirect(url_for("admin.admin_backups"))
+    try:
+        result = purge_all_data()
+        flash(
+            f"Factory reset complete. Database recreated and uploads cleared (items removed: {result.get('uploads_removed', 0)})."
+        )
+    except BackupError as exc:
+        flash(str(exc))
+    except Exception:  # pylint: disable=broad-except
+        current_app.logger.exception("Factory reset failed")
+        flash("Factory reset failed. Please check the server logs.")
+    return redirect(url_for("admin.admin_backups"))
 
 
 @bp.route("/admin/users/new", methods=["GET", "POST"])
