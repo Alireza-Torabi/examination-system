@@ -25,7 +25,6 @@ instance/
 static/uploads/
 *.db
 *.sqlite
-exam_app.db
 
 # Logs
 *.log
