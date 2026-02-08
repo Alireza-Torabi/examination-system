@@ -27,6 +27,7 @@ This app serves multi-tenant instructor/student exams with dashboards for admin,
 - Admin: `admin` / `admin123`
 - Instructor: `instructor` / `instructor123`
 - Student: `student1` / `student123`
+- Tester: `tester` / `tester123`
 
 ## Configuration
 - `SECRET_KEY` (default: `dev-secret-key`)

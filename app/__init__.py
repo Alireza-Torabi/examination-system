@@ -26,13 +26,14 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     db.init_app(app)
 
     # Register blueprints
-    from app.controllers import auth, core, admin, instructor, student, settings as settings_ctrl
+    from app.controllers import auth, core, admin, instructor, student, tester, settings as settings_ctrl
 
     app.register_blueprint(core.bp)
     app.register_blueprint(auth.bp)
     app.register_blueprint(admin.bp)
     app.register_blueprint(instructor.bp)
     app.register_blueprint(student.bp)
+    app.register_blueprint(tester.bp)
     app.register_blueprint(settings_ctrl.bp)
 
     # Template filters

@@ -11,6 +11,58 @@
   </div>
 </div>
 
+{% if tester_reviews %}
+  <section class="card">
+    <h3>Tester Review Requests</h3>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Exam</th>
+          <th>Question</th>
+          <th>Tester</th>
+          <th>Proposed Answer</th>
+          <th>Proposed Reason</th>
+          <th>Note</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set letters = ['A','B','C','D','E','F'] %}
+        {% for r in tester_reviews %}
+          <tr>
+            <td>{{ r.exam.title }}</td>
+            <td>{{ r.question.text|striptags }}</td>
+            <td>{{ r.tester.username }}</td>
+            <td>
+              {% set proposed = r.proposed_choices() %}
+              {% if proposed %}
+                {% for choice in r.question.choices %}
+                  {% if choice.id in proposed %}
+                    <div><strong>{{ letters[loop.index0] }}.</strong> {{ choice.text }}</div>
+                  {% endif %}
+                {% endfor %}
+              {% else %}
+                <span class="hint">No proposal</span>
+              {% endif %}
+            </td>
+            <td>{{ r.proposed_reason or '-' }}</td>
+            <td>{{ r.note or '-' }}</td>
+            <td>
+              <form method="post" action="{{ url_for('instructor.apply_tester_review', review_id=r.id) }}" style="display:inline;">
+                <button type="submit" class="btn ghost">Apply</button>
+              </form>
+              <form method="post" action="{{ url_for('instructor.resolve_tester_review', review_id=r.id) }}" style="display:inline;">
+                <button type="submit" class="btn ghost">Resolve</button>
+              </form>
+              <a class="btn ghost" href="{{ url_for('instructor.edit_question', question_id=r.question.id) }}">Edit question</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endif %}
+
 {% if exams %}
   <div class="grid">
     {% for item in exams %}

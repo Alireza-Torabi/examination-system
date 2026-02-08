@@ -12,7 +12,7 @@
 
 <form method="post" enctype="multipart/form-data" class="card">
   <label>Question text
-    <textarea name="text" id="question-editor" rows="6" required>{{ question.text|safe }}</textarea>
+    <textarea name="text" id="question-editor" class="rte" rows="6" required>{{ question.text|safe }}</textarea>
   </label>
   <label>Type
     <select name="qtype">
@@ -66,7 +66,7 @@
     {% endfor %}
   </div>
   <label>Reason / Explanation (optional, shown to student after exam)
-    <textarea name="reason" rows="2" placeholder="Why this answer is correct, hints, or notes for review">{{ question.reason or "" }}</textarea>
+    <textarea name="reason" id="reason-editor" class="rte" rows="2" placeholder="Why this answer is correct, hints, or notes for review">{{ question.reason|safe if question.reason else "" }}</textarea>
   </label>
   <label>Reason image (optional)
     {% if question.reason_image_path %}
@@ -83,7 +83,7 @@
 <script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.3/tinymce.min.js" referrerpolicy="origin"></script>
 <script>
   tinymce.init({
-    selector: '#question-editor',
+    selector: '.rte',
     menubar: false,
     plugins: 'advlist autolink lists link image charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime media table code help wordcount directionality',
     toolbar: 'fontsizeselect bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link image table | rtl ltr | removeformat code',

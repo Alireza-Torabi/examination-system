@@ -16,7 +16,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
-    role = db.Column(db.String(20), nullable=False)  # instructor or student
+    role = db.Column(db.String(20), nullable=False)  # admin, instructor, student, tester
     full_name = db.Column(db.String(120))
     tenant_id = db.Column(db.Integer, db.ForeignKey("tenant.id"), nullable=False)
     tenant = db.relationship("Tenant")
@@ -153,3 +153,31 @@ class AccessLog(db.Model):
 
     user = db.relationship("User")
     tenant = db.relationship("Tenant")
+
+
+class TesterReview(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    exam_id = db.Column(db.Integer, db.ForeignKey("exam.id"), nullable=False)
+    question_id = db.Column(db.Integer, db.ForeignKey("question.id"), nullable=False)
+    tester_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    tenant_id = db.Column(db.Integer, db.ForeignKey("tenant.id"), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    status = db.Column(db.String(20), default="open")  # open/resolved
+    proposed_choice_ids = db.Column(db.Text)  # JSON list of choice IDs
+    proposed_reason = db.Column(db.Text)
+    note = db.Column(db.Text)
+    resolved_at = db.Column(db.DateTime)
+    resolved_by = db.Column(db.Integer, db.ForeignKey("user.id"))
+
+    exam = db.relationship("Exam")
+    question = db.relationship("Question")
+    tester = db.relationship("User", foreign_keys=[tester_id])
+    tenant = db.relationship("Tenant")
+
+    def proposed_choices(self) -> list[int]:
+        if not self.proposed_choice_ids:
+            return []
+        try:
+            return json.loads(self.proposed_choice_ids)
+        except json.JSONDecodeError:
+            return []

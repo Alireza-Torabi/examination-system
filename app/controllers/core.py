@@ -36,5 +36,9 @@ def index():
     if user:
         if user.role == "admin":
             return redirect(url_for("admin.admin_dashboard"))
-        return redirect(url_for("instructor.instructor_dashboard" if user.role == "instructor" else "student.student_dashboard"))
+        if user.role == "instructor":
+            return redirect(url_for("instructor.instructor_dashboard"))
+        if user.role == "tester":
+            return redirect(url_for("tester.tester_dashboard"))
+        return redirect(url_for("student.student_dashboard"))
     return redirect(url_for("auth.login"))

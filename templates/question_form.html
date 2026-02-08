@@ -13,7 +13,7 @@
 
 <form method="post" enctype="multipart/form-data" class="card">
   <label>Question text
-    <textarea name="text" id="question-editor" rows="6" required></textarea>
+    <textarea name="text" id="question-editor" class="rte" rows="6" required></textarea>
   </label>
   <label>Type
     <select name="qtype">
@@ -42,7 +42,7 @@
     {% endfor %}
   </div>
   <label>Reason / Explanation (optional, shown to student after exam)
-    <textarea name="reason" rows="2" placeholder="Why this answer is correct, hints, or notes for review"></textarea>
+    <textarea name="reason" id="reason-editor" class="rte" rows="2" placeholder="Why this answer is correct, hints, or notes for review"></textarea>
   </label>
   <label>Reason image (optional)
     <input type="file" name="reason_image" accept="image/*">
@@ -102,13 +102,17 @@
                     <img src="{{ qimg }}" alt="question image">
                   </div>
                 {% endif %}
-                {% if question.reason %}
-                  <div class="hint">Reason: {{ question.reason|normalize_imgs|safe }}</div>
-                {% endif %}
-                {% set rimg = question.reason_image_path|img_url %}
-                {% if rimg %}
-                  <div class="question-image">
-                    <img src="{{ rimg }}" alt="reason image">
+                {% if question.reason or question.reason_image_path %}
+                  <div id="reason-{{ question.id }}" class="reason-content" hidden>
+                    {% if question.reason %}
+                      <div class="rich-text">{{ question.reason|normalize_imgs|safe }}</div>
+                    {% endif %}
+                    {% set rimg = question.reason_image_path|img_url %}
+                    {% if rimg %}
+                      <div class="question-image">
+                        <img src="{{ rimg }}" alt="reason image">
+                      </div>
+                    {% endif %}
                   </div>
                 {% endif %}
               </div>
@@ -137,6 +141,11 @@
                 <button type="button" class="btn ghost small icon-btn preview-trigger" data-question-id="{{ question.id }}">
                   <span class="icon">👁️</span><span>Preview</span>
                 </button>
+                {% if question.reason or question.reason_image_path %}
+                  <button type="button" class="btn ghost small icon-btn reason-trigger" data-reason-target="reason-{{ question.id }}">
+                    <span class="icon">🛈</span><span>Reason</span>
+                  </button>
+                {% endif %}
               </div>
             </div>
           </div>
@@ -157,10 +166,22 @@
     <div id="preview-content"></div>
   </div>
 </div>
+<div id="reason-modal" class="modal hidden">
+  <div class="modal-backdrop" data-close-reason></div>
+  <div class="modal-body">
+    <button class="modal-close" data-close-reason>&times;</button>
+    <div class="modal-card">
+      <div class="toolbar no-space">
+        <h3>Reason / Explanation</h3>
+      </div>
+      <div id="reason-content" class="card"></div>
+    </div>
+  </div>
+</div>
 <script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.3/tinymce.min.js" referrerpolicy="origin"></script>
 <script>
   tinymce.init({
-    selector: '#question-editor',
+    selector: '.rte',
     menubar: false,
     plugins: 'advlist autolink lists link image charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime media table code help wordcount directionality',
     toolbar: 'fontsizeselect bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link image table | rtl ltr | removeformat code',
@@ -196,6 +217,9 @@
   const modal = document.getElementById('preview-modal');
   const modalContent = document.getElementById('preview-content');
   const previewButtons = document.querySelectorAll('.preview-trigger');
+  const reasonModal = document.getElementById('reason-modal');
+  const reasonContent = document.getElementById('reason-content');
+  const reasonButtons = document.querySelectorAll('.reason-trigger');
 
   function closePreview() {
     if (modal) {
@@ -208,6 +232,19 @@
     modal.addEventListener('click', (e) => {
       if (e.target.hasAttribute('data-close-preview')) {
         closePreview();
+      }
+    });
+  }
+  function closeReason() {
+    if (reasonModal) {
+      reasonModal.classList.add('hidden');
+      reasonContent.innerHTML = '';
+    }
+  }
+  if (reasonModal) {
+    reasonModal.addEventListener('click', (e) => {
+      if (e.target.hasAttribute('data-close-reason')) {
+        closeReason();
       }
     });
   }
@@ -227,8 +264,23 @@
       }
     });
   });
+  reasonButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetId = btn.dataset.reasonTarget;
+      const target = targetId ? document.getElementById(targetId) : null;
+      if (!reasonModal || !reasonContent) return;
+      reasonContent.innerHTML = target ? target.innerHTML : '';
+      if (!reasonContent.innerHTML.trim()) {
+        reasonContent.textContent = 'No reason provided.';
+      }
+      reasonModal.classList.remove('hidden');
+    });
+  });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closePreview();
+    if (e.key === 'Escape') {
+      closePreview();
+      closeReason();
+    }
   });
   // Delete confirmation
   document.querySelectorAll('.confirm-delete').forEach(btn => {
