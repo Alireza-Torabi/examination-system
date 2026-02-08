@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, send_file, url_for
 
 from app.extensions import db
-from app.models import Answer, Attempt, Choice, Exam, ExamDeletionLog, ExamProgress, Question, Tenant, User
+from app.models import Answer, Attempt, Choice, Exam, ExamDeletionLog, ExamProgress, Question, Tenant, TesterReview, User
 from app.services.exams import (
     create_questions,
     export_exam_to_workbook,
@@ -38,7 +38,19 @@ def instructor_dashboard():
         start_local = fmt_dt(to_local(ex.start_at if ex.start_at.tzinfo else ex.start_at.replace(tzinfo=timezone.utc), user_tz))
         end_local = fmt_dt(to_local(ex.end_at if ex.end_at.tzinfo else ex.end_at.replace(tzinfo=timezone.utc), user_tz))
         exams.append({"obj": ex, "start_local": start_local, "end_local": end_local})
-    return render_template("instructor_dashboard.html", exams=exams, now=now_local, user_timezone=user_tz)
+    review_rows = (
+        TesterReview.query.join(Exam, TesterReview.exam_id == Exam.id)
+        .filter(Exam.created_by == user.id, TesterReview.status == "open", TesterReview.tenant_id == user.tenant_id)
+        .order_by(TesterReview.created_at.desc())
+        .all()
+    )
+    return render_template(
+        "instructor_dashboard.html",
+        exams=exams,
+        now=now_local,
+        user_timezone=user_tz,
+        tester_reviews=review_rows,
+    )
 
 
 @bp.route("/excel-template")
@@ -128,7 +140,7 @@ def excel_template():
 
 
 @bp.route("/instructor/uploads/images", methods=["POST"])
-@login_required(role=["instructor", "admin"])
+@login_required(role=["instructor", "admin", "tester"])
 def upload_rte_image():
     image_file = request.files.get("file")
     if not image_file or not image_file.filename:
@@ -724,3 +736,48 @@ def export_exam(exam_id):
         download_name=fname,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
+
+@bp.route("/instructor/tester_reviews/<int:review_id>/resolve", methods=["POST"])
+@login_required(role="instructor")
+def resolve_tester_review(review_id):
+    user = get_current_user()
+    review = db.session.get(TesterReview, review_id)
+    if not review:
+        abort(404)
+    exam = db.session.get(Exam, review.exam_id)
+    if not exam or exam.created_by != user.id or exam.tenant_id != user.tenant_id:
+        abort(403)
+    review.status = "resolved"
+    review.resolved_at = datetime.utcnow()
+    review.resolved_by = user.id
+    db.session.commit()
+    flash("Tester review marked as resolved.")
+    return redirect(url_for("instructor.instructor_dashboard"))
+
+
+@bp.route("/instructor/tester_reviews/<int:review_id>/apply", methods=["POST"])
+@login_required(role="instructor")
+def apply_tester_review(review_id):
+    user = get_current_user()
+    review = db.session.get(TesterReview, review_id)
+    if not review:
+        abort(404)
+    exam = db.session.get(Exam, review.exam_id)
+    if not exam or exam.created_by != user.id or exam.tenant_id != user.tenant_id:
+        abort(403)
+    question = db.session.get(Question, review.question_id)
+    if question and question.exam_id == exam.id and question.tenant_id == exam.tenant_id:
+        proposed_ids = set(review.proposed_choices())
+        if proposed_ids:
+            for choice in question.choices:
+                choice.is_correct = choice.id in proposed_ids
+        if review.proposed_reason:
+            question.reason = review.proposed_reason
+        db.session.add(question)
+    review.status = "resolved"
+    review.resolved_at = datetime.utcnow()
+    review.resolved_by = user.id
+    db.session.commit()
+    flash("Tester review applied and resolved.")
+    return redirect(url_for("instructor.instructor_dashboard"))

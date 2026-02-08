@@ -108,5 +108,16 @@ def init_db():
             instructor_id=default_instructor.id if default_instructor else None,
         )
         db.session.add(student)
+    if not User.query.filter_by(username="tester").first():
+        default_instructor = User.query.filter_by(username="instructor").first()
+        tester = User(
+            username="tester",
+            full_name="QA Tester",
+            role="tester",
+            password_hash=generate_password_hash("tester123"),
+            tenant_id=tenant.id,
+            instructor_id=default_instructor.id if default_instructor else None,
+        )
+        db.session.add(tester)
     db.session.commit()
-    print("Database initialized. Default logins: instructor/instructor123 and student1/student123.")
+    print("Database initialized. Default logins: instructor/instructor123, student1/student123, tester/tester123.")

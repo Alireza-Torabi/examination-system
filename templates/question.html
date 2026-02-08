@@ -1,20 +1,30 @@
 {% extends "layout.html" %}
 {% block content %}
 {% set preview = is_preview|default(False) %}
+{% set tester_mode = tester_mode|default(False) %}
+{% set ns = 'tester' if tester_mode else 'student' %}
 <div class="toolbar">
   <div>
     <p class="hint">Exam: {{ attempt.exam.title }}</p>
     <h2>Question {{ index }} of {{ total }}</h2>
   </div>
-  {% if not preview %}
+  {% if not preview and not tester_mode %}
     <div class="pill" dir="ltr">Time left: <span id="timer" class="mono" data-seconds="{{ time_left_seconds }}" data-total="{{ total_seconds }}" data-per-question="{{ per_question_seconds }}">{{ time_left_seconds }}s</span></div>
-  {% else %}
+  {% elif preview %}
     <div class="pill" dir="ltr">Preview</div>
   {% endif %}
 </div>
 
 {% set q_rtl = is_rtl(question.text|striptags) %}
-<form method="post" class="card" dir="{{ 'rtl' if q_rtl else 'ltr' }}" {% if preview %}onsubmit="return false;"{% endif %}>
+<form
+  method="post"
+  class="card"
+  dir="{{ 'rtl' if q_rtl else 'ltr' }}"
+  {% if preview %}onsubmit="return false;"{% endif %}
+  {% if tester_mode %}
+    data-instant-url="{{ url_for('tester.tester_instant_feedback', attempt_id=attempt.id, question_id=question.id) }}"
+  {% endif %}
+>
   <p class="question-text">{{ question.text|normalize_imgs|safe }}</p>
   {% set qimg = question.image_path|img_url %}
   {% if qimg %}
@@ -41,6 +51,16 @@
       </label>
     {% endfor %}
   </div>
+  {% if tester_mode %}
+    <div id="testerFeedback" class="tester-feedback is-hidden" aria-live="polite">
+      <p class="summary"></p>
+      <div>
+        <p><strong>Correct answer(s):</strong></p>
+        <ul class="plain" id="testerCorrectList"></ul>
+        <div class="hint" id="testerReason" style="display:none;"></div>
+      </div>
+    </div>
+  {% endif %}
   <div class="actions">
     {% if index > 1 %}
       <button type="{{ 'button' if preview else 'submit' }}" name="action" value="previous" class="btn ghost" {% if preview %}disabled{% endif %}>Previous</button>
@@ -50,14 +70,56 @@
     {% else %}
       <button type="{{ 'button' if preview else 'submit' }}" name="action" value="review" class="btn" {% if preview %}disabled{% endif %}>Save &amp; Review</button>
     {% endif %}
-    <button type="{{ 'button' if preview else 'submit' }}" formaction="{{ url_for('student.submit_attempt', attempt_id=attempt.id) }}" formmethod="post" class="btn ghost" {% if preview %}disabled{% endif %}>Finish now</button>
+    <button type="{{ 'button' if preview else 'submit' }}" formaction="{{ url_for(ns ~ '.submit_attempt', attempt_id=attempt.id) }}" formmethod="post" class="btn ghost" {% if preview %}disabled{% endif %}>Finish now</button>
   </div>
   <p id="overTimeMsg" class="warning" style="display:none;"></p>
 </form>
+{% if tester_mode %}
+  <div class="card muted">
+    <h3>Reason / Explanation</h3>
+    <form method="post" action="{{ url_for('tester.update_reason', question_id=question.id) }}">
+      <input type="hidden" name="attempt_id" value="{{ attempt.id }}">
+      <input type="hidden" name="index" value="{{ index }}">
+      <textarea name="reason" id="tester-reason-editor" class="rte" rows="3" placeholder="Add or edit the explanation...">{{ question.reason|safe if question.reason else "" }}</textarea>
+      <div class="actions">
+        <button type="submit" class="btn ghost">Save reason</button>
+      </div>
+    </form>
+  </div>
+  <div class="card muted">
+    <h3>Request Review (if answer key is wrong)</h3>
+    <form method="post" action="{{ url_for('tester.request_review', question_id=question.id) }}">
+      <input type="hidden" name="attempt_id" value="{{ attempt.id }}">
+      <input type="hidden" name="index" value="{{ index }}">
+      <div class="choices compact" dir="{{ 'rtl' if q_rtl else 'ltr' }}">
+        {% set letters = ['A','B','C','D','E','F'] %}
+        {% for choice in question.choices %}
+          {% set rtl_choice = is_rtl(choice.text) or q_rtl %}
+          <label class="choice choice-compact" dir="{{ 'rtl' if rtl_choice else 'ltr' }}">
+            <input type="checkbox" name="proposed_choice" value="{{ choice.id }}">
+            <div class="choice-body">
+              <span class="choice-text"><strong>{{ letters[loop.index0] }}.</strong> {{ choice.text }}</span>
+            </div>
+          </label>
+        {% endfor %}
+      </div>
+      <label>Proposed reason (optional)
+        <textarea name="proposed_reason" rows="2" placeholder="Why is this the correct answer?"></textarea>
+      </label>
+      <label>Note to instructor (optional)
+        <textarea name="note" rows="2" placeholder="Explain the issue with the current key..."></textarea>
+      </label>
+      <div class="actions">
+        <button type="submit" class="btn ghost">Send review request</button>
+      </div>
+    </form>
+  </div>
+{% endif %}
 {% if not preview %}
-  <form id="autoSubmitForm" method="post" action="{{ url_for('student.submit_attempt', attempt_id=attempt.id) }}"></form>
+  <form id="autoSubmitForm" method="post" action="{{ url_for(ns ~ '.submit_attempt', attempt_id=attempt.id) }}"></form>
 
   <script>
+    const isTester = {{ 'true' if tester_mode else 'false' }};
     const timerEl = document.getElementById('timer');
     if (timerEl) {
       let remaining = parseInt(timerEl.dataset.seconds, 10) || 0;
@@ -104,25 +166,153 @@
       tick();
     }
 
-    // Clipboard guard: warn on first copy, close exam on second copy
-    (function() {
-      const storageKey = `copyWarnings-${attempt.id}`;
-      let copyCount = 0;
-      try {
-        copyCount = parseInt(sessionStorage.getItem(storageKey), 10) || 0;
-      } catch (e) {}
-      const warnOnce = () => {
-        copyCount += 1;
-        try { sessionStorage.setItem(storageKey, copyCount); } catch (e) {}
-        if (copyCount === 1) {
-          alert("Warning: Do not copy exam text or use AI/chatbots for answers. Repeating this will close your exam.");
-        } else if (copyCount >= 2) {
-          alert("Exam closed due to suspected AI/chatbot use.");
-          window.location.href = "{{ url_for('student.submit_attempt', attempt_id=attempt.id) }}";
+    if (!isTester) {
+      // Clipboard guard: warn on first copy, close exam on second copy
+      (function() {
+        const storageKey = `copyWarnings-${attempt.id}`;
+        let copyCount = 0;
+        try {
+          copyCount = parseInt(sessionStorage.getItem(storageKey), 10) || 0;
+        } catch (e) {}
+        const warnOnce = () => {
+          copyCount += 1;
+          try { sessionStorage.setItem(storageKey, copyCount); } catch (e) {}
+          if (copyCount === 1) {
+            alert("Warning: Do not copy exam text or use AI/chatbots for answers. Repeating this will close your exam.");
+          } else if (copyCount >= 2) {
+            alert("Exam closed due to suspected AI/chatbot use.");
+            window.location.href = "{{ url_for('student.submit_attempt', attempt_id=attempt.id) }}";
+          }
+        };
+        document.addEventListener('copy', warnOnce, { capture: true });
+      })();
+    }
+
+    if (isTester) {
+      (function() {
+        const form = document.querySelector('form.card[data-instant-url]');
+        if (!form) return;
+        const instantUrl = form.dataset.instantUrl;
+        const inputs = Array.from(form.querySelectorAll('input[name="choice"]'));
+        const feedback = document.getElementById('testerFeedback');
+        const summary = feedback ? feedback.querySelector('.summary') : null;
+        const correctList = document.getElementById('testerCorrectList');
+        const reasonEl = document.getElementById('testerReason');
+
+        const renderFeedback = (payload) => {
+          if (!feedback || !summary || !correctList) return;
+          const correctIds = new Set((payload.correct_ids || []).map(String));
+          const selectedIds = new Set((payload.selected_ids || []).map(String));
+          if (!selectedIds.size) {
+            feedback.classList.add('is-hidden');
+            summary.textContent = '';
+            correctList.innerHTML = '';
+            if (reasonEl) {
+              reasonEl.style.display = 'none';
+              reasonEl.textContent = '';
+            }
+            return;
+          }
+          inputs.forEach((input) => {
+            const label = input.closest('.choice');
+            if (!label) return;
+            label.classList.remove('choice-correct', 'choice-key', 'choice-wrong');
+            const idStr = String(input.value);
+            if (selectedIds.has(idStr) && correctIds.has(idStr)) {
+              label.classList.add('choice-correct');
+            } else if (correctIds.has(idStr)) {
+              label.classList.add('choice-key');
+            } else if (selectedIds.has(idStr)) {
+              label.classList.add('choice-wrong');
+            }
+          });
+          summary.textContent = payload.is_correct
+            ? 'Your answer is correct.'
+            : 'Your answer is incorrect; see the correct option(s) below.';
+          correctList.innerHTML = '';
+          inputs.forEach((input, idx) => {
+            const idStr = String(input.value);
+            if (correctIds.has(idStr)) {
+              const li = document.createElement('li');
+              const text = input.closest('.choice')?.querySelector('.choice-text')?.textContent || '';
+              li.textContent = text.trim();
+              correctList.appendChild(li);
+            }
+          });
+          if (reasonEl) {
+            const reasonHtml = payload.reason_html || '';
+            const reasonImg = payload.reason_image_url || '';
+            if (reasonHtml || reasonImg) {
+              reasonEl.style.display = 'block';
+              reasonEl.innerHTML = '';
+              const label = document.createElement('div');
+              label.innerHTML = '<strong>Reason:</strong>';
+              reasonEl.appendChild(label);
+              if (reasonHtml) {
+                const wrap = document.createElement('div');
+                wrap.className = 'rich-text';
+                wrap.innerHTML = reasonHtml;
+                reasonEl.appendChild(wrap);
+              }
+              if (reasonImg) {
+                const imgWrap = document.createElement('div');
+                imgWrap.className = 'question-image';
+                const img = document.createElement('img');
+                img.src = reasonImg;
+                img.alt = 'Reason image';
+                imgWrap.appendChild(img);
+                reasonEl.appendChild(imgWrap);
+              }
+            } else {
+              reasonEl.style.display = 'none';
+              reasonEl.textContent = '';
+            }
+          }
+          feedback.classList.remove('is-hidden');
+        };
+
+        const handleChange = () => {
+          const fd = new FormData();
+          inputs.forEach((input) => {
+            if (input.checked) fd.append('choice', input.value);
+          });
+          fetch(instantUrl, { method: 'POST', body: fd, credentials: 'same-origin' })
+            .then((res) => res.json())
+            .then((data) => {
+              if (data) renderFeedback(data);
+            })
+            .catch(() => {});
+        };
+
+        inputs.forEach((input) => {
+          input.addEventListener('change', handleChange);
+          input.addEventListener('click', handleChange);
+        });
+        if (inputs.some((input) => input.checked)) {
+          handleChange();
         }
-      };
-      document.addEventListener('copy', warnOnce, { capture: true });
-    })();
+      })();
+    }
   </script>
+  {% if tester_mode %}
+    <script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.3/tinymce.min.js" referrerpolicy="origin"></script>
+    <script>
+      tinymce.init({
+        selector: '#tester-reason-editor',
+        menubar: false,
+        plugins: 'advlist autolink lists link image charmap preview anchor searchreplace visualblocks code fullscreen insertdatetime media table code help wordcount directionality',
+        toolbar: 'fontsizeselect bold italic underline forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | link image table | rtl ltr | removeformat code',
+        height: 200,
+        branding: false,
+        content_style: 'body { font-family: Arial, sans-serif; font-size: 14px; }',
+        directionality: document.dir || 'ltr',
+        paste_data_images: true,
+        automatic_uploads: true,
+        file_picker_types: 'image',
+        images_upload_url: '{{ url_for("instructor.upload_rte_image") }}',
+        images_upload_credentials: false
+      });
+    </script>
+  {% endif %}
 {% endif %}
 {% endblock %}

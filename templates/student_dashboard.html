@@ -1,8 +1,9 @@
 {% extends "layout.html" %}
 {% block content %}
+{% set ns = 'tester' if tester_mode else 'student' %}
 <div class="toolbar">
   <div>
-    <h2>Student Exams</h2>
+    <h2>{% if tester_mode %}Tester Lab{% else %}Student Exams{% endif %}</h2>
     <p class="hint">Current time ({{ user_timezone }}): {{ now.strftime("%Y-%m-%d %H:%M") }}</p>
   </div>
 </div>
@@ -25,11 +26,11 @@
           <p dir="ltr"><strong>Window:</strong> {{ item.start_local }} - {{ item.end_local }} ({{ user_timezone }})</p>
           <p><strong>Duration:</strong> {{ exam.duration_minutes }} minutes</p>
           {% if status == "active" %}
-            <a class="btn" href="{{ url_for('student.start_exam', exam_id=exam.id) }}">Start / Resume</a>
+            <a class="btn" href="{{ url_for(ns ~ '.start_exam', exam_id=exam.id) }}">Start / Resume</a>
           {% elif status == "completed_active" %}
             <div class="actions">
-              <a class="btn" href="{{ url_for('student.start_exam', exam_id=exam.id) }}">Retake</a>
-              <a class="btn ghost" href="{{ url_for('student.view_result', attempt_id=attempt.id) }}">View last result</a>
+              <a class="btn" href="{{ url_for(ns ~ '.start_exam', exam_id=exam.id) }}">Retake</a>
+              <a class="btn ghost" href="{{ url_for(ns ~ '.view_result', attempt_id=attempt.id) }}">View last result</a>
             </div>
           {% elif status == "upcoming" %}
             <p class="hint">Starts in <span class="countdown" data-seconds="{{ item.countdown_seconds }}">...</span></p>
@@ -73,9 +74,9 @@
             <td>{% if attempt.submitted_at %}{{ attempt.score_percent }}%{% else %}In progress{% endif %}</td>
             <td>
               {% if attempt.submitted_at %}
-                <a href="{{ url_for('student.view_result', attempt_id=attempt.id) }}">View result</a>
+                <a href="{{ url_for(ns ~ '.view_result', attempt_id=attempt.id) }}">View result</a>
               {% else %}
-                <a href="{{ url_for('student.show_question', attempt_id=attempt.id, index=1) }}">Resume</a>
+                <a href="{{ url_for(ns ~ '.show_question', attempt_id=attempt.id, index=1) }}">Resume</a>
               {% endif %}
             </td>
           </tr>

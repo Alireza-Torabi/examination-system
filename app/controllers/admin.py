@@ -273,12 +273,12 @@ def admin_user_new():
         if not username or not password or not tenant_id:
             flash("Username, password, and tenant are required.")
             return redirect(request.url)
-        if role not in {"admin", "instructor", "student"}:
+        if role not in {"admin", "instructor", "student", "tester"}:
             role = "student"
         if User.query.filter_by(username=username).first():
             flash("Username already exists.")
             return redirect(request.url)
-        if role == "student" and instructor_id:
+        if role in {"student", "tester"} and instructor_id:
             instructor = db.session.get(User, instructor_id)
             if not instructor or instructor.role != "instructor" or instructor.tenant_id != tenant_id:
                 flash("Instructor must be a valid instructor in the same tenant.")
@@ -292,7 +292,7 @@ def admin_user_new():
                 role=role,
                 password_hash=generate_password_hash(password),
                 tenant_id=tenant_id,
-                instructor_id=instructor_id if role == "student" else None,
+                instructor_id=instructor_id if role in {"student", "tester"} else None,
                 timezone=timezone,
             )
         )
@@ -321,12 +321,13 @@ def admin_user_edit(user_id):
             return redirect(request.url)
         user_obj.username = username
         user_obj.full_name = request.form.get("full_name", "").strip()
-        user_obj.role = request.form.get("role", user_obj.role)
+        new_role = request.form.get("role", user_obj.role)
+        user_obj.role = new_role if new_role in {"admin", "instructor", "student", "tester"} else user_obj.role
         tenant_id = request.form.get("tenant_id", type=int) or user_obj.tenant_id
         user_obj.tenant_id = tenant_id
         instructor_id = request.form.get("instructor_id", type=int)
         user_obj.timezone = request.form.get("timezone", "").strip() or None
-        if user_obj.role == "student" and instructor_id:
+        if user_obj.role in {"student", "tester"} and instructor_id:
             instructor = db.session.get(User, instructor_id)
             if not instructor or instructor.role != "instructor" or instructor.tenant_id != tenant_id:
                 flash("Instructor must be a valid instructor in the same tenant.")

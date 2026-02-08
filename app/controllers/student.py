@@ -70,6 +70,7 @@ def student_dashboard():
         now=now_local,
         user_timezone=user_tz,
         attempts=attempts,
+        tester_mode=False,
     )
 
 

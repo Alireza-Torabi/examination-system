@@ -17,12 +17,12 @@
   <label>Role
     <select name="role">
       {% set selected_role = user.role if user else "student" %}
-      {% for r in ["admin", "instructor", "student"] %}
+      {% for r in ["admin", "instructor", "student", "tester"] %}
         <option value="{{ r }}" {% if selected_role == r %}selected{% endif %}>{{ r }}</option>
       {% endfor %}
     </select>
   </label>
-  <label>Instructor (for students)
+  <label>Instructor (for students / testers)
     <select name="instructor_id">
       <option value="">-- None --</option>
       {% for inst in instructors %}
@@ -32,7 +32,7 @@
         </option>
       {% endfor %}
     </select>
-    <p class="hint">Assign only when role is student; instructor must be in the same tenant.</p>
+    <p class="hint">Assign only when role is student or tester; instructor must be in the same tenant.</p>
   </label>
   <label>Timezone
     <select name="timezone">

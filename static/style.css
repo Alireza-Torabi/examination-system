@@ -157,6 +157,9 @@ button:hover, .btn:hover { filter: brightness(0.95); }
 .choice span { display: block; line-height: 1.4; word-break: break-word; }
 .choice-body { display: grid; gap: 6px; align-items: start; }
 .choice-text { display: block; line-height: 1.4; }
+.choice.choice-correct { border-color: #5cb85c; background: #e9f8ee; }
+.choice.choice-key { border-color: #9bd7a7; background: #f6fbf8; }
+.choice.choice-wrong { border-color: #f0b6b6; background: #fff4f4; }
 .choice-image { max-width: 220px; height: auto; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); }
 .choice-image.inline { display: block; margin-top: 6px; }
 .tox-tinymce { width: 100%; border-radius: 8px; }
@@ -175,6 +178,10 @@ button:hover, .btn:hover { filter: brightness(0.95); }
 .wrong { color: #d63031; }
 .ghost { background: transparent; }
 .hint.red { color: #c0392b; font-weight: 700; }
+.tester-feedback { border-left: 4px solid var(--border); padding: 10px 12px; border-radius: 8px; margin: 10px 0; }
+.tester-feedback.good { background: #e9f8ee; border-color: #2ecc71; }
+.tester-feedback.bad { background: #fff4f4; border-color: #e74c3c; }
+.tester-feedback.is-hidden { display: none; }
 .option-thumb { margin-top: 6px; }
 .option-thumb img, img.option-thumb { max-height: 60px; max-width: 160px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg); }
 img.option-thumb { display: inline-block; vertical-align: middle; margin-left: 6px; }
@@ -190,7 +197,7 @@ img.option-thumb { display: inline-block; vertical-align: middle; margin-left: 6
 .correct-tag { background: #e5f7eb; color: #0e8a2f; border: 1px solid #b6e4c2; }
 .correct-text { color: #0e8a2f; font-weight: 700; font-style: italic; }
 .question-text .hint { margin-bottom: 4px; }
-.question-text .rich-text img { max-width: 100%; height: auto; }
+.rich-text img { max-width: 100%; height: auto; }
 .question-image img { max-width: 200px; height: auto; }
 .question-text img { max-width: 100%; height: auto; }
 .choice-row { display: grid; grid-template-columns: 32px 1fr; gap: 6px; align-items: start; }
